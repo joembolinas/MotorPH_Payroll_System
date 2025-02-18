@@ -1,24 +1,48 @@
+package com.motorph.payroll;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 
-// Employee.java - Stores Employee Data
 public class Employee {
-    public int employeeNumber = 10001; // Employee Number
-    public String lastName = "Garcia";
-    public String firstName = "Manuel III";
-    public String birthday = "10/11/1983";
-    public String address = "Valero Carpark Building, Valero Street 1227, Makati City";
-    public String phoneNumber = "966-860-270";
-    public String sssNumber = "44-4506057-3";
-    public String philhealthNumber = "820126853951";
-    public String tinNumber = "442-605-657-000";
-    public String pagibigNumber = "691295330870";
-    public String status = "Regular";
-    public String position = "Chief Executive Officer";
-    public String immediateSupervisor = "N/A";
-    public double basicSalary = 90000;
-    public double riceSubsidy = 1500;
-    public double phoneAllowance = 2000;
-    public double clothingAllowance = 1000;
-    public double grossSemiMonthlyRate = 45000;
-    public double hourlyRate = 535.71;
+    private final int employeeNumber;
+    private final String lastName;
+    private final String firstName;
+    private final LocalDate birthday;
+    private final String position;
+    private final double hourlyRate;
+
+    public Employee(String[] data) throws IllegalArgumentException {
+        try {
+            this.employeeNumber = Integer.parseInt(data[0].trim());
+            this.lastName = data[1].trim();
+            this.firstName = data[2].trim();
+            this.birthday = parseDate(data[3].trim());
+            this.position = data[11].trim();
+            this.hourlyRate = Double.parseDouble(data[18].trim());
+        } catch (DateTimeParseException | NumberFormatException | ArrayIndexOutOfBoundsException e) {
+            throw new IllegalArgumentException("Invalid employee data: " + e.getMessage());
+        }
+    }
+
+    private LocalDate parseDate(String dateString) throws DateTimeParseException {
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("M/d/yyyy");
+        return LocalDate.parse(dateString, formatter);
+    }
+
+    // Getters
+    public int getEmployeeNumber() { return employeeNumber; }
+    public String getFullName() { return firstName + " " + lastName; }
+    public LocalDate getBirthday() { return birthday; }
+    public String getPosition() { return position; }
+    public double getHourlyRate() { return hourlyRate; }
+
+    public void displayEmployeeInfo() {
+        System.out.println("\nEmployee Details:");
+        System.out.println("Number: " + employeeNumber);
+        System.out.println("Name: " + getFullName());
+        System.out.println("Birthday: " + birthday.format(DateTimeFormatter.ISO_DATE));
+        System.out.println("Position: " + position);
+        System.out.printf("Hourly Rate: PHP %.2f%n", hourlyRate);
+    }
 }
