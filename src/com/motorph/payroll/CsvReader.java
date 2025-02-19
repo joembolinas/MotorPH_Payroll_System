@@ -12,7 +12,7 @@ public class CsvReader {
         List<Employee> employees = new ArrayList<>();
         int lineNumber = 0;
 
-        try (BufferedReader br = new BufferedReader(new InputStreamReader(new URL(url).openStream()))) {
+        try (BufferedReader br = new BufferedReader(new InputStreamReader(new .openStream()))) {
             br.readLine(); // Skip header
             String line;
             
