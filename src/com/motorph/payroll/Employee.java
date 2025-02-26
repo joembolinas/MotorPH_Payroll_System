@@ -39,6 +39,7 @@ public class Employee {
     public LocalDate getBirthday() { return birthday; } // Get birthday
     public String getPosition() { return position; } // Get position
     public double getHourlyRate() { return hourlyRate; } // Get hourly rate
+    
 
     // Method to display employee information
     public void displayEmployeeInfo() {
@@ -48,5 +49,10 @@ public class Employee {
         System.out.println("Birthday: " + birthday.format(DateTimeFormatter.ISO_DATE)); // Print birthday
         System.out.println("Position: " + position); // Print position
         System.out.printf("Hourly Rate: PHP %.2f%n", hourlyRate); // Print hourly rate
-    }
+    } // Close displayEmployeeInfo method
+    
+    public String getFormattedHourlyRate() {  
+        return String.format("PHP %.2f/hour", hourlyRate);  // Get formatted hourly rate
+        
+    } 
 }

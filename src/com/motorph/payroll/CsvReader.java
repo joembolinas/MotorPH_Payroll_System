@@ -34,11 +34,12 @@ public class CsvReader {
         if (employees.isEmpty()) { // check if the list is empty
             throw new IOException("No valid employee records found in CSV");
         }
+        System.out.println("Debug: Loaded " + employees.size() + " employees.");
         return employees;
     }
 
     // New method to read attendance data
-    public static void fetchAttendanceData(String url, AttendanceTracker tracker) throws IOException {
+    public static void loadAttendanceData(String url, AttendanceTracker tracker) throws IOException {
         int lineNumber = 0; // lineNumber to 0
 
         try (BufferedReader br = new BufferedReader(new InputStreamReader(new URL(url).openStream()))) {
@@ -59,6 +60,9 @@ public class CsvReader {
                     System.err.printf("Skipping invalid attendance data at line %d: %s%n", lineNumber, e.getMessage());
                 }
             }
+        } catch (IOException e) {
+            throw new IOException("Failed to read attendance data: " + e.getMessage());
         }
+        System.out.println("Debug: Attendance data loaded.");
     }
 }

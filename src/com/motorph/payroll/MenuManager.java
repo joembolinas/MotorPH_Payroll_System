@@ -44,23 +44,25 @@ public class MenuManager { // create a class named MenuManager
     // Employee management menu
     private void displayEmployeeMenu() {
         while (true) {
-            System.out.println("\nEmployee Management:"); // Print the header
+            System.out.println("\nEmployee Management:");
             System.out.println("1. Search Employee");
             System.out.println("2. List All Employees");
             System.out.println("3. View Hours Worked");
-            System.out.println("4. Return to Main Menu");
-            System.out.print("Enter your choice: ");    // Prompt the user for input
-
-            try {   // try block to handle exceptions of menu choice
+            System.out.println("4. Calculate Gross Salary"); // New option
+            System.out.println("5. Return to Main Menu");
+            System.out.print("Enter your choice: ");
+    
+            try {
                 int choice = Integer.parseInt(scanner.nextLine());
                 switch (choice) {
                     case 1 -> searchEmployee();
                     case 2 -> listAllEmployees();
                     case 3 -> viewHoursWorked();
-                    case 4 -> { return; }
-                    default -> System.out.println("Invalid choice. Please enter 1-4.");
+                    case 4 -> calculateGrossSalary();
+                    case 5 -> { return; }
+                    default -> System.out.println("Invalid choice. Please enter 1-5.");
                 }
-            } catch (NumberFormatException e) { // catch block to handle NumberFormatException
+            } catch (NumberFormatException e) {
                 System.out.println("Invalid input. Please enter a number.");
             }
         }
@@ -130,4 +132,38 @@ public class MenuManager { // create a class named MenuManager
     private void displayPayrollMenu() {
         System.out.println("\n (soon)"); // for future implementation
     }
+
+
+private void calculateGrossSalary() {
+    System.out.print("\nEnter employee number: ");
+    int empNumber = Integer.parseInt(scanner.nextLine());
+    
+    // Get employee and hours worked
+    Employee employee = employees.stream()
+            .filter(e -> e.getEmployeeNumber() == empNumber)
+            .findFirst()
+            .orElse(null);
+    
+    if (employee == null) {
+        System.out.println("Employee not found.");
+        return;
+    }
+
+    double hoursWorked = attendanceTracker.calculateHoursWorked(empNumber);
+    if (hoursWorked <= 0) {
+        System.out.println("No valid attendance record found.");
+        return;
+    }
+
+    // Calculate and display
+    double grossSalary = PayrollCalculator.calculateGrossSalary(
+        hoursWorked, 
+        employee.getHourlyRate()
+    );
+    
+    System.out.printf("\nGross Salary Calculation for %s:%n", employee.getFullName());
+    System.out.printf("Hours Worked: %.2f hrs%n", hoursWorked);
+    System.out.printf("Hourly Rate: PHP %.2f%n", employee.getHourlyRate());
+    System.out.printf("Gross Salary: PHP %.2f%n", grossSalary);
+} 
 }
