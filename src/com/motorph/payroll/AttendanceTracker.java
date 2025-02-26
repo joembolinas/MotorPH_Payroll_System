@@ -54,6 +54,7 @@ public class AttendanceTracker { // create a class named AttendanceTracker
         // Calculate hours worked
         Duration duration = Duration.between(record.loginTime, record.logoutTime); // calculate the duration between login and logout time
         double hoursWorked = duration.toMinutes() / 60.0; // convert 
+        System.out.println("Debug: Attendance Record for Employee = " + hoursWorked);
 
         // Ensure hours worked do not exceed office hours
         if (record.logoutTime.isAfter(OFFICE_END_TIME)) {

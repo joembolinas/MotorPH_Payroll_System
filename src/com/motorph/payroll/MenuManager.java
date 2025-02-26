@@ -155,15 +155,54 @@ private void calculateGrossSalary() {
         return;
     }
 
+    // Debug logs
+    System.out.println("Debug: Employee Hourly Rate = " + employee.getHourlyRate());
+    System.out.println("Debug: Hours Worked = " + hoursWorked);
+
     // Calculate and display
-    double grossSalary = PayrollCalculator.calculateGrossSalary(
-        hoursWorked, 
-        employee.getHourlyRate()
-    );
+    double grossSalary = PayrollCalculator.calculateGrossSalary(hoursWorked, employee.getHourlyRate());
     
     System.out.printf("\nGross Salary Calculation for %s:%n", employee.getFullName());
     System.out.printf("Hours Worked: %.2f hrs%n", hoursWorked);
     System.out.printf("Hourly Rate: PHP %.2f%n", employee.getHourlyRate());
     System.out.printf("Gross Salary: PHP %.2f%n", grossSalary);
+}
+
+// MenuManager.java
+private void calculateNetSalary() {
+    System.out.print("\nEnter employee number: ");
+    int empNumber = Integer.parseInt(scanner.nextLine());
+
+    Employee employee = employees.stream()
+            .filter(e -> e.getEmployeeNumber() == empNumber)
+            .findFirst()
+            .orElse(null);
+
+    if (employee == null) {
+        System.out.println("Employee not found.");
+        return;
+    }
+
+    double hoursWorked = attendanceTracker.calculateHoursWorked(empNumber);
+    if (hoursWorked <= 0) {
+        System.out.println("No valid attendance record found.");
+        return;
+    }
+
+    // Debug logs
+    System.out.println("Debug: Employee Hourly Rate = " + employee.getHourlyRate());
+    System.out.println("Debug: Hours Worked = " + hoursWorked);
+
+    double grossSalary = PayrollCalculator.calculateGrossSalary(hoursWorked, employee.getHourlyRate());
+    double netSalary = PayrollCalculator.calculateNetSalary(grossSalary);
+
+    System.out.printf("\nNet Salary Calculation for %s:%n", employee.getFullName());
+    System.out.printf("Gross Salary: PHP %.2f%n", grossSalary);
+    System.out.printf("Deductions (SSS: PHP %.2f, PhilHealth: PHP %.2f, Pag-IBIG: PHP %.2f, Tax: PHP %.2f)%n",
+            DeductionsCalculator.calculateSSS(grossSalary),
+            DeductionsCalculator.calculatePhilHealth(grossSalary),
+            DeductionsCalculator.calculatePagIBIG(),
+            DeductionsCalculator.calculateWithholdingTax(grossSalary));
+    System.out.printf("Net Salary: PHP %.2f%n", netSalary);
 } 
 }
