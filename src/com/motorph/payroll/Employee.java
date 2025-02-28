@@ -12,37 +12,47 @@ public class Employee {
     private final String position;
     private final double hourlyRate;
 
+    // Constructor to initialize Employee object from a string array
     public Employee(String[] data) throws IllegalArgumentException {
         try {
-            this.employeeNumber = Integer.parseInt(data[0].trim());
-            this.lastName = data[1].trim();
-            this.firstName = data[2].trim();
-            this.birthday = parseDate(data[3].trim());
-            this.position = data[11].trim();
-            this.hourlyRate = Double.parseDouble(data[18].trim());
+            this.employeeNumber = Integer.parseInt(data[0].trim()); // Parse and assign employee number
+            this.lastName = data[1].trim(); // Assign last name
+            this.firstName = data[2].trim(); // Assign first name
+            this.birthday = parseDate(data[3].trim()); // Parse and assign birthday
+            this.position = data[11].trim(); // Assign position
+            this.hourlyRate = Double.parseDouble(data[18].trim()); // Parse and assign hourly rate
         } catch (DateTimeParseException | NumberFormatException | ArrayIndexOutOfBoundsException e) {
+            // Throw exception if data is invalid
             throw new IllegalArgumentException("Invalid employee data: " + e.getMessage());
         }
     }
 
+    // Method to parse date from string
     private LocalDate parseDate(String dateString) throws DateTimeParseException {
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("M/d/yyyy");
-        return LocalDate.parse(dateString, formatter);
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("M/d/yyyy"); // Define date format
+        return LocalDate.parse(dateString, formatter); // Parse and return LocalDate
     }
 
     // Getters
-    public int getEmployeeNumber() { return employeeNumber; }
-    public String getFullName() { return firstName + " " + lastName; }
-    public LocalDate getBirthday() { return birthday; }
-    public String getPosition() { return position; }
-    public double getHourlyRate() { return hourlyRate; }
+    public int getEmployeeNumber() { return employeeNumber; } // Get employee number
+    public String getFullName() { return firstName + " " + lastName; } // Get full name
+    public LocalDate getBirthday() { return birthday; } // Get birthday
+    public String getPosition() { return position; } // Get position
+    public double getHourlyRate() { return hourlyRate; } // Get hourly rate
+    
 
+    // Method to display employee information
     public void displayEmployeeInfo() {
-        System.out.println("\nEmployee Details:");
-        System.out.println("Number: " + employeeNumber);
-        System.out.println("Name: " + getFullName());
-        System.out.println("Birthday: " + birthday.format(DateTimeFormatter.ISO_DATE));
-        System.out.println("Position: " + position);
-        System.out.printf("Hourly Rate: PHP %.2f%n", hourlyRate);
-    }
+        System.out.println("\nEmployee Details:"); // Print header
+        System.out.println("Number: " + employeeNumber); // Print employee number
+        System.out.println("Name: " + getFullName()); // Print full name
+        System.out.println("Birthday: " + birthday.format(DateTimeFormatter.ISO_DATE)); // Print birthday
+        System.out.println("Position: " + position); // Print position
+        System.out.printf("Hourly Rate: PHP %.2f%n", hourlyRate); // Print hourly rate
+    } // Close displayEmployeeInfo method
+    
+    public String getFormattedHourlyRate() {  
+        return String.format("PHP %.2f/hour", hourlyRate);  // Get formatted hourly rate
+        
+    } 
 }
