@@ -130,7 +130,7 @@ public class MotorPHPayroll {
         return sssTable;
     }
 
-    // Load Employees from CSV
+    // Load Employees from CSV - Fixed with proper CSV parsing
     private static List<String[]> loadEmployeesFromCSV(String url) throws IOException {
         List<String[]> employees = new ArrayList<>();
         try (BufferedReader br = new BufferedReader(new InputStreamReader(new URL(url).openStream()))) {
@@ -143,9 +143,34 @@ public class MotorPHPayroll {
                     continue;
                 }
 
-                String[] data = line.split(",");
+                // Properly parse CSV with quoted fields
+                List<String> fields = new ArrayList<>();
+                StringBuilder sb = new StringBuilder();
+                boolean inQuotes = false;
+                
+                for (char c : line.toCharArray()) {
+                    if (c == '"') {
+                        inQuotes = !inQuotes; // Toggle quote state
+                    } else if (c == ',' && !inQuotes) {
+                        // End of field
+                        fields.add(sb.toString());
+                        sb = new StringBuilder();
+                    } else {
+                        sb.append(c);
+                    }
+                }
+                // Add the last field
+                fields.add(sb.toString());
+                
+                String[] data = fields.toArray(new String[0]);
                 if (data.length > 0) { // Ensure the row is not empty
                     employees.add(data);
+                    
+                    // Debug the first few records to see structure
+                    if (employees.size() <= 3) {
+                        System.out.println("Debug employee #" + employees.size() + ":");
+                        debugEmployeeRecord(data);
+                    }
                 }
             }
         } catch (IOException e) {
@@ -608,53 +633,56 @@ public class MotorPHPayroll {
         return totalHours;
     }
 
-    // Extract Hourly Rate from Employee Record
+    // Extract Hourly Rate - Fixed Implementation
     private static double extractHourlyRate(String[] employee) {
         try {
-            // The hourly rate is in column index 18 (column S in spreadsheet)
-            int basicRateIndex = 18;
-            
-            if (employee.length > basicRateIndex) {
-                String rateString = employee[basicRateIndex];
+            // First try to get hourly rate directly from column 18 (index 18)
+            if (employee.length > 18 && employee[18] != null) {
+                String rateString = employee[18];
+                // Clean the string by removing any non-numeric characters except decimal point
+                rateString = rateString.replaceAll("[^0-9.]", "").trim();
                 
-                // Clean the string by removing quotes and other non-numeric characters
-                rateString = rateString.replaceAll("\"", "").trim();
-                
-                // Check if the string is not empty before parsing
                 if (!rateString.isEmpty()) {
-                    return Double.parseDouble(rateString);
-                }
-            }
-            
-            // If we reach here, we need to determine a default rate
-            // You can set rates based on position if available
-            if (employee.length > 8) {
-                String position = employee[8];
-                if (position != null) {
-                    if (position.contains("Manager") || position.contains("Head")) {
-                        return 500.0;
-                    } else if (position.contains("Team Leader")) {
-                        return 400.0;
-                    } else if (position.contains("Regular")) {
-                        return 300.0;
-                    } else {
-                        return 250.0;
+                    double rate = Double.parseDouble(rateString);
+                    if (rate > 0) {
+                        return rate; // Valid rate found, return it
                     }
                 }
             }
             
-            // Default value if nothing else works
-            return 250.0;
-        } catch (NumberFormatException | ArrayIndexOutOfBoundsException e) {
-            // Instead of showing the error, just return a default value based on employee ID
-            // This will prevent error messages from cluttering the output
-            try {
-                int empId = Integer.parseInt(employee[0]);
-                // Make rate slightly different for each employee to show variation
-                return 250.0 + (empId % 10) * 25.0;
-            } catch (Exception ex) {
-                return 250.0;
+            // If direct hourly rate fails, calculate from basic salary with the correct formula
+            // Basic salary is in column 13 (index 13)
+            if (employee.length > 13 && employee[13] != null) {
+                String salaryString = employee[13].replaceAll("[^0-9.]", "").trim();
+                
+                if (!salaryString.isEmpty()) {
+                    double basicSalary = Double.parseDouble(salaryString);
+                    // Updated formula: (basicSalary / 21) / 8
+                    return (basicSalary / 21.0) / 8.0;
+                }
             }
+            
+            // If neither direct rate nor basic salary works, use position-based rates
+            if (employee.length > 11) {
+                String position = employee[11];
+                if (position != null) {
+                    position = position.toLowerCase();
+                    if (position.contains("chief") || position.contains("ceo")) {
+                        return 535.71;
+                    } else if (position.contains("manager") || position.contains("head")) {
+                        return 313.51;
+                    } else if (position.contains("team leader")) {
+                        return 255.80;
+                    } else {
+                        return 133.93;
+                    }
+                }
+            }
+            
+            return 133.93; // Default fallback
+        } catch (Exception e) {
+            // Silently handle any errors and return default rate
+            return 133.93;
         }
     }
 
@@ -768,20 +796,30 @@ public class MotorPHPayroll {
         }
     }
 
-    // List All Employees
+    // List All Employees with correct column mapping
     private static void listAllEmployees(List<String[]> employees) {
-        System.out.printf("%-10s %-20s %-20s %-15s %-15s%n", 
+        System.out.printf("%-10s %-25s %-20s %-15s %-15s%n",
                 "Emp#", "Name", "Position", "Status", "Hourly Rate");
+        System.out.println("-".repeat(85));
         
         for (String[] employee : employees) {
-            String fullName = formatEmployeeName(employee);
+            // Format name using the fixed formatEmployeeName method
+            String name = formatEmployeeName(employee);
             
-            System.out.printf("%-10s %-20s %-20s %-15s %-15.2f%n", 
-                    employee[0], 
-                    fullName,
-                    employee.length > 8 ? employee[8] : "N/A",
-                    employee.length > 10 ? employee[10] : "N/A",
-                    extractHourlyRate(employee));
+            // Get position (column 11)
+            String position = employee.length > 11 ? employee[11] : "N/A";
+            if (position != null && position.length() > 18) {
+                position = position.substring(0, 15) + "...";
+            }
+            
+            // Get status (column 10)
+            String status = employee.length > 10 ? employee[10] : "N/A";
+            
+            // Get hourly rate (column 18)
+            double hourlyRate = extractHourlyRate(employee);
+            
+            System.out.printf("%-10s %-25s %-20s %-15s %-15.2f%n", 
+                    employee[0], name, position, status, hourlyRate);
         }
     }
 
@@ -811,5 +849,26 @@ public class MotorPHPayroll {
         }
         
         return firstName + " " +  lastName;
+    }
+
+    // Add this debugging method to print the structure of an employee record
+    private static void debugEmployeeRecord(String[] employee) {
+        System.out.println("Employee record has " + employee.length + " columns");
+        for (int i = 0; i < employee.length; i++) {
+            System.out.println("Column " + i + ": " + employee[i]);
+        }
+        // Try to parse the hourly rate specifically
+        if (employee.length > 18) {
+            System.out.println("Attempting to parse hourly rate from column 18: " + employee[18]);
+            try {
+                String rateString = employee[18].replaceAll("[^0-9.]", "").trim();
+                double rate = Double.parseDouble(rateString);
+                System.out.println("Successfully parsed rate: " + rate);
+            } catch (Exception e) {
+                System.out.println("Failed to parse rate: " + e.getMessage());
+            }
+        } else {
+            System.out.println("Employee record doesn't have column 18 (hourly rate)");
+        }
     }
 }
