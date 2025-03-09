@@ -8,6 +8,7 @@ import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
@@ -41,7 +42,7 @@ public class MotorPHPayroll {
             System.out.println("4. Exit");
             System.out.print("Enter your choice: ");
 
-            int choice = Integer.parseInt(scanner.nextLine());
+            int choice = getIntInput(scanner, 1, 4);
 
             switch (choice) {
                 case 1 -> employeeManagement(employees, attendanceRecords, scanner);
@@ -52,7 +53,6 @@ public class MotorPHPayroll {
                     scanner.close();
                     System.exit(0);
                 }
-                default -> System.out.println("Invalid choice. Please enter 1-4.");
             }
         }
     }
@@ -67,7 +67,7 @@ public class MotorPHPayroll {
             System.out.println("4. Return to Main Menu");
             System.out.print("Enter your choice: ");
 
-            int choice = Integer.parseInt(scanner.nextLine());
+            int choice = getIntInput(scanner, 1, 4);
 
             switch (choice) {
                 case 1 -> searchEmployee(employees, scanner);
@@ -76,7 +76,6 @@ public class MotorPHPayroll {
                 case 4 -> {
                     return;
                 }
-                default -> System.out.println("Invalid choice. Please enter 1-4.");
             }
         }
     }
@@ -116,22 +115,18 @@ public class MotorPHPayroll {
     // View Attendance
     private static void viewAttendance(List<String[]> attendanceRecords, Scanner scanner) {
         System.out.print("\nEnter Employee No: ");
-        int empNumber = Integer.parseInt(scanner.nextLine());
+        int empNumber = getIntInput(scanner);
 
         System.out.print("Date From (MM/DD/YYYY): ");
-        String fromDate = scanner.nextLine();
+        LocalDate startDate = getDateInput(scanner);
 
         System.out.print("Date To (MM/DD/YYYY): ");
-        String toDate = scanner.nextLine();
-
-        DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("M/d/yyyy");
-        LocalDate startDate = LocalDate.parse(fromDate, dateFormatter);
-        LocalDate endDate = LocalDate.parse(toDate, dateFormatter);
+        LocalDate endDate = getDateInput(scanner);
 
         System.out.println("\nDate       | In   | Out  | Duration | Remarks");
         for (String[] record : attendanceRecords) {
             if (Integer.parseInt(record[0]) == empNumber) {
-                LocalDate recordDate = LocalDate.parse(record[3], dateFormatter);
+                LocalDate recordDate = LocalDate.parse(record[3], DateTimeFormatter.ofPattern("M/d/yyyy"));
                 if (!recordDate.isBefore(startDate) && !recordDate.isAfter(endDate)) {
                     try {
                         LocalTime loginTime = LocalTime.parse(record[4], DateTimeFormatter.ofPattern("H:mm"));
@@ -160,7 +155,7 @@ public class MotorPHPayroll {
             System.out.println("3. Return to Main Menu");
             System.out.print("Enter your choice: ");
 
-            int choice = Integer.parseInt(scanner.nextLine());
+            int choice = getIntInput(scanner, 1, 3);
 
             switch (choice) {
                 case 1 -> generatePayroll(employees, attendanceRecords, scanner);
@@ -168,7 +163,6 @@ public class MotorPHPayroll {
                 case 3 -> {
                     return;
                 }
-                default -> System.out.println("Invalid choice. Please enter 1-3.");
             }
         }
     }
@@ -178,14 +172,10 @@ public class MotorPHPayroll {
         System.out.println("\nGenerate Payroll:");
 
         System.out.print("Date From (MM/DD/YYYY): ");
-        String fromDate = scanner.nextLine();
+        LocalDate startDate = getDateInput(scanner);
 
         System.out.print("Date To (MM/DD/YYYY): ");
-        String toDate = scanner.nextLine();
-
-        DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("M/d/yyyy");
-        LocalDate startDate = LocalDate.parse(fromDate, dateFormatter);
-        LocalDate endDate = LocalDate.parse(toDate, dateFormatter);
+        LocalDate endDate = getDateInput(scanner);
 
         System.out.printf("%-10s %-20s %-15s %-10s %-10s %-10s%n",
                 "Emp#", "Name", "Total Work Hours", "Hourly Rate", "Gross Pay", "Net Pay");
@@ -204,7 +194,7 @@ public class MotorPHPayroll {
         System.out.println("\n1. Post Payroll");
         System.out.println("2. Edit Payroll");
         System.out.print("Enter your choice: ");
-        int action = Integer.parseInt(scanner.nextLine());
+        int action = getIntInput(scanner, 1, 2);
 
         if (action == 1) {
             System.out.println("Payroll posted successfully.");
@@ -216,17 +206,13 @@ public class MotorPHPayroll {
     // Custom Payroll for Specific Employee
     private static void customPayroll(List<String[]> employees, List<String[]> attendanceRecords, Scanner scanner) {
         System.out.print("\nEnter Employee No: ");
-        int empNumber = Integer.parseInt(scanner.nextLine());
+        int empNumber = getIntInput(scanner);
 
         System.out.print("Date From (MM/DD/YYYY): ");
-        String fromDate = scanner.nextLine();
+        LocalDate startDate = getDateInput(scanner);
 
         System.out.print("Date To (MM/DD/YYYY): ");
-        String toDate = scanner.nextLine();
-
-        DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("M/d/yyyy");
-        LocalDate startDate = LocalDate.parse(fromDate, dateFormatter);
-        LocalDate endDate = LocalDate.parse(toDate, dateFormatter);
+        LocalDate endDate = getDateInput(scanner);
 
         String[] employee = findEmployeeById(employees, empNumber);
         if (employee == null) {
@@ -245,7 +231,7 @@ public class MotorPHPayroll {
         System.out.println("\n1. Post Payroll");
         System.out.println("2. Edit Payroll");
         System.out.print("Enter your choice: ");
-        int action = Integer.parseInt(scanner.nextLine());
+        int action = getIntInput(scanner, 1, 2);
 
         if (action == 1) {
             System.out.println("Payroll posted successfully.");
@@ -264,7 +250,7 @@ public class MotorPHPayroll {
             System.out.println("4. Return to Main Menu");
             System.out.print("Enter your choice: ");
 
-            int choice = Integer.parseInt(scanner.nextLine());
+            int choice = getIntInput(scanner, 1, 4);
 
             switch (choice) {
                 case 1 -> generatePayslip(employees, attendanceRecords, scanner);
@@ -273,7 +259,6 @@ public class MotorPHPayroll {
                 case 4 -> {
                     return;
                 }
-                default -> System.out.println("Invalid choice. Please enter 1-4.");
             }
         }
     }
@@ -281,17 +266,13 @@ public class MotorPHPayroll {
     // Generate Payslip
     private static void generatePayslip(List<String[]> employees, List<String[]> attendanceRecords, Scanner scanner) {
         System.out.print("\nEnter Employee No: ");
-        int empNumber = Integer.parseInt(scanner.nextLine());
+        int empNumber = getIntInput(scanner);
 
         System.out.print("Date From (MM/DD/YYYY): ");
-        String fromDate = scanner.nextLine();
+        LocalDate startDate = getDateInput(scanner);
 
         System.out.print("Date To (MM/DD/YYYY): ");
-        String toDate = scanner.nextLine();
-
-        DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("M/d/yyyy");
-        LocalDate startDate = LocalDate.parse(fromDate, dateFormatter);
-        LocalDate endDate = LocalDate.parse(toDate, dateFormatter);
+        LocalDate endDate = getDateInput(scanner);
 
         String[] employee = findEmployeeById(employees, empNumber);
         if (employee == null) {
@@ -450,5 +431,39 @@ public class MotorPHPayroll {
             }
         }
         return attendanceRecords;
+    }
+
+    // Helper method to get integer input with validation
+    private static int getIntInput(Scanner scanner) {
+        while (true) {
+            try {
+                return Integer.parseInt(scanner.nextLine());
+            } catch (NumberFormatException e) {
+                System.out.print("Invalid input. Please enter a valid integer: ");
+            }
+        }
+    }
+
+    // Helper method to get integer input within a range
+    private static int getIntInput(Scanner scanner, int min, int max) {
+        while (true) {
+            int input = getIntInput(scanner);
+            if (input >= min && input <= max) {
+                return input;
+            }
+            System.out.printf("Invalid input. Please enter a number between %d and %d: ", min, max);
+        }
+    }
+
+    // Helper method to get date input with validation
+    private static LocalDate getDateInput(Scanner scanner) {
+        DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("M/d/yyyy");
+        while (true) {
+            try {
+                return LocalDate.parse(scanner.nextLine(), dateFormatter);
+            } catch (DateTimeParseException e) {
+                System.out.print("Invalid date format. Please enter date in MM/DD/YYYY format: ");
+            }
+        }
     }
 }
