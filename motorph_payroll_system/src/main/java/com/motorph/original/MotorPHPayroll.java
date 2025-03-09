@@ -339,7 +339,7 @@ public class MotorPHPayroll {
                 // Post all payroll entries
                 for (Map<String, Object> entry : payrollEntries) {
                     int empNumber = (int) entry.get("empNumber");
-                    String key = empNumber + "_" + startDate + "_" + endDate;
+                    String key = empNumber + "_" + entry.get("startDate") + "_" + entry.get("endDate");
                     postedPayrolls.put(key, entry);
                 }
                 System.out.println("Payroll posted successfully.");
