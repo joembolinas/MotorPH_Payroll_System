@@ -18,9 +18,34 @@ import java.util.Scanner;
 public class MotorPHPayroll {
 
     // Constants
-    private static final double OVERTIME_RATE = 1.25;
+    private static final double OVERTIME_RATE = 1.25; // 25% additional pay for overtime
     private static final int REGULAR_HOURS_PER_DAY = 8;
+    private static final int WORK_DAYS_PER_MONTH = 21;
+    private static final LocalTime LATE_THRESHOLD = LocalTime.of(8, 10); // 8:10 AM
+
+    // Date and time format constants
+    private static final String DATE_FORMAT_PATTERN = "MM/dd/yyyy";
+    private static final String TIME_FORMAT_PATTERN = "H:mm";
+    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern(DATE_FORMAT_PATTERN);
+    private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern(TIME_FORMAT_PATTERN);
+
+    // Employee data column indices
+    private static final int EMP_ID_COL = 0;
+    private static final int LAST_NAME_COL = 1;
+    private static final int FIRST_NAME_COL = 2;
+    private static final int POSITION_COL = 11;
+    private static final int STATUS_COL = 10;
+    private static final int BASIC_SALARY_COL = 13;
+    private static final int HOURLY_RATE_COL = 18;
+
+    // Attendance record column indices
+    private static final int ATT_EMP_ID_COL = 0;
+    private static final int ATT_DATE_COL = 3;
+    private static final int ATT_TIME_IN_COL = 4;
+    private static final int ATT_TIME_OUT_COL = 5;
+
     private static final Map<Double, Double> SSS_TABLE = initSSSTable();
+    private static final PayrollCalculator payrollCalculator = new PayrollCalculator();
     
     // In-memory storage for posted payrolls
     private static final Map<String, Map<String, Object>> postedPayrolls = new HashMap<>();
@@ -71,7 +96,13 @@ public class MotorPHPayroll {
         scanner.close();
     }
 
-    // Initialize SSS contribution table
+    /**
+     * Initializes and populates the SSS contribution table with salary brackets and their
+     * corresponding contribution amounts. This table is used to determine the appropriate
+     * SSS contribution based on an employee's salary.
+     *
+     * @return A map with salary bracket upper limits as keys and contribution amounts as values
+     */
     private static Map<Double, Double> initSSSTable() {
         Map<Double, Double> sssTable = new HashMap<>();
         // Range: 0-4,249.99 = 180.00
@@ -130,7 +161,15 @@ public class MotorPHPayroll {
         return sssTable;
     }
 
-    // Load Employees from CSV - Fixed with proper CSV parsing
+    /**
+     * Loads employee data from a CSV file accessible via the provided URL.
+     * This method handles CSV parsing with support for quoted fields and skips the header row.
+     * For debugging purposes, the first three employee records are printed to the console.
+     *
+     * @param url The URL of the CSV file containing employee data
+     * @return A list of string arrays, where each array represents an employee record
+     * @throws IOException If there's an error accessing or parsing the CSV file
+     */
     private static List<String[]> loadEmployeesFromCSV(String url) throws IOException {
         List<String[]> employees = new ArrayList<>();
         try (BufferedReader br = new BufferedReader(new InputStreamReader(new URL(url).openStream()))) {
@@ -310,7 +349,7 @@ public class MotorPHPayroll {
             double totalHours = calculateHoursWorked(attendanceRecords, empNumber, startDate, endDate);
             double hourlyRate = extractHourlyRate(employee);
             double grossPay = totalHours * hourlyRate;
-            double netPay = calculateNetPay(grossPay);
+            double netPay = payrollCalculator.calculateNetPay(grossPay);
             
             // Format the name properly without birth date
             String fullName = formatEmployeeName(employee);
@@ -388,7 +427,7 @@ public class MotorPHPayroll {
         double totalHours = calculateHoursWorked(attendanceRecords, empNumber, startDate, endDate);
         double hourlyRate = extractHourlyRate(employee);
         double grossPay = totalHours * hourlyRate;
-        double netPay = calculateNetPay(grossPay);
+        double netPay = payrollCalculator.calculateNetPay(grossPay);
         
         String fullName = formatEmployeeName(employee);
         
@@ -466,7 +505,7 @@ public class MotorPHPayroll {
             double totalHours = calculateHoursWorked(attendanceRecords, empNumber, startDate, endDate);
             double hourlyRate = extractHourlyRate(employee);
             double grossPay = totalHours * hourlyRate;
-            double netPay = calculateNetPay(grossPay);
+            double netPay = payrollCalculator.calculateNetPay(grossPay);
             
             String fullName = formatEmployeeName(employee);
             
@@ -542,7 +581,7 @@ public class MotorPHPayroll {
                 // Calculate based on hourly rate
                 double hourlyRate = extractHourlyRate(employee);
                 grossPay = totalHours * hourlyRate;
-                netPay = calculateNetPay(grossPay);
+                netPay = payrollCalculator.calculateNetPay(grossPay);
             }
             
             System.out.printf("%-10s %-20s %-15.2f %-10.2f %-10.2f%n", 
@@ -574,16 +613,16 @@ public class MotorPHPayroll {
         
         boolean found = false;
         for (String[] record : attendanceRecords) {
-            if (Integer.parseInt(record[0]) == empNumber) {
+            if (Integer.parseInt(record[EMP_ID_COL]) == empNumber) {
                 try {
-                    LocalDate recordDate = LocalDate.parse(record[3], DateTimeFormatter.ofPattern("M/d/yyyy"));
+                    LocalDate recordDate = LocalDate.parse(record[ATT_DATE_COL], DATE_FORMATTER);
                     if (!recordDate.isBefore(startDate) && !recordDate.isAfter(endDate)) {
                         found = true;
-                        LocalTime timeIn = LocalTime.parse(record[4], timeFormatter);
-                        LocalTime timeOut = LocalTime.parse(record[5], timeFormatter);
+                        LocalTime timeIn = LocalTime.parse(record[ATT_TIME_IN_COL], timeFormatter);
+                        LocalTime timeOut = LocalTime.parse(record[ATT_TIME_OUT_COL], timeFormatter);
                         
                         double duration = Duration.between(timeIn, timeOut).toMinutes() / 60.0;
-                        String remarks = timeIn.isBefore(LocalTime.of(8, 10)) ? "On Time" : "Late";
+                        String remarks = timeIn.isBefore(LATE_THRESHOLD) ? "On Time" : "Late";
                         
                         System.out.printf("%-10s | %-6s | %-6s | %-9.2f | %-10s%n", 
                                 recordDate.format(dateFormatter), 
@@ -603,27 +642,22 @@ public class MotorPHPayroll {
         }
     }
 
-    // Calculate Hours Worked
-    private static double calculateHoursWorked(List<String[]> attendanceRecords, int empNumber, LocalDate startDate,
-            LocalDate endDate) {
+    /**
+     * Calculates the total hours worked by an employee within a specified date range.
+     * @param attendanceRecords List of attendance records
+     * @param empNumber The employee's ID number
+     * @param startDate The beginning of the date range
+     * @param endDate The end of the date range
+     * @return Total hours worked
+     */
+    private static double calculateHoursWorked(List<String[]> attendanceRecords, int empNumber,
+            LocalDate startDate, LocalDate endDate) {
         double totalHours = 0;
-        DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("H:mm");
-        DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("M/d/yyyy");
         
         for (String[] record : attendanceRecords) {
             try {
-                if (Integer.parseInt(record[0]) == empNumber) {
-                    LocalDate recordDate = LocalDate.parse(record[3], dateFormatter);
-                    if (!recordDate.isBefore(startDate) && !recordDate.isAfter(endDate)) {
-                        LocalTime timeIn = LocalTime.parse(record[4], timeFormatter);
-                        LocalTime timeOut = LocalTime.parse(record[5], timeFormatter);
-                        
-                        // Calculate duration in hours
-                        Duration duration = Duration.between(timeIn, timeOut);
-                        double hoursWorked = duration.toMinutes() / 60.0;
-                        
-                        totalHours += hoursWorked;
-                    }
+                if (isRecordForEmployee(record, empNumber) && isRecordInDateRange(record, startDate, endDate)) {
+                    totalHours += calculateHoursForRecord(record);
                 }
             } catch (Exception e) {
                 System.err.println("Error processing attendance record: " + e.getMessage());
@@ -633,7 +667,65 @@ public class MotorPHPayroll {
         return totalHours;
     }
 
-    // Extract Hourly Rate - Fixed Implementation
+    /**
+     * Checks if an attendance record belongs to the specified employee.
+     * @param record The attendance record
+     * @param empNumber The employee ID to check for
+     * @return true if the record belongs to the employee, false otherwise
+     */
+    private static boolean isRecordForEmployee(String[] record, int empNumber) {
+        try {
+            return Integer.parseInt(record[ATT_EMP_ID_COL]) == empNumber;
+        } catch (NumberFormatException e) {
+            return false;
+        }
+    }
+
+    /**
+     * Checks if an attendance record falls within the specified date range.
+     * @param record The attendance record
+     * @param startDate The start date of the range (inclusive)
+     * @param endDate The end date of the range (inclusive)
+     * @return true if the record is within the date range, false otherwise
+     */
+    private static boolean isRecordInDateRange(String[] record, LocalDate startDate, LocalDate endDate) {
+        try {
+            LocalDate recordDate = LocalDate.parse(record[ATT_DATE_COL], DATE_FORMATTER);
+            return !recordDate.isBefore(startDate) && !recordDate.isAfter(endDate);
+        } catch (DateTimeParseException e) {
+            return false;
+        }
+    }
+
+    /**
+     * Calculates the hours worked for a single attendance record.
+     * @param record The attendance record
+     * @return Hours worked for this record
+     */
+    private static double calculateHoursForRecord(String[] record) {
+        try {
+            LocalTime timeIn = LocalTime.parse(record[ATT_TIME_IN_COL], TIME_FORMATTER);
+            LocalTime timeOut = LocalTime.parse(record[ATT_TIME_OUT_COL], TIME_FORMATTER);
+            
+            // Calculate duration in hours
+            Duration duration = Duration.between(timeIn, timeOut);
+            return duration.toMinutes() / 60.0;
+        } catch (DateTimeParseException e) {
+            System.err.println("Error parsing time: " + e.getMessage());
+            return 0.0;
+        }
+    }
+
+    /**
+     * Extracts or calculates the hourly rate for an employee based on available data.
+     * The method tries multiple approaches in the following order:
+     * 1. Direct hourly rate from column 18
+     * 2. Calculated from basic salary in column 13 (salary / 21 days / 8 hours)
+     * 3. Position-based default rates if neither is available
+     *
+     * @param employee The employee record as a string array
+     * @return The hourly rate for the employee
+     */
     private static double extractHourlyRate(String[] employee) {
         try {
             // First try to get hourly rate directly from column 18 (index 18)
@@ -683,71 +775,6 @@ public class MotorPHPayroll {
         } catch (Exception e) {
             // Silently handle any errors and return default rate
             return 133.93;
-        }
-    }
-
-    // Calculate Net Pay from Gross Pay - Improved
-    private static double calculateNetPay(double grossPay) {
-        // Set minimum values to avoid negative net pay
-        double sssDeduction = Math.min(calculateSSSContribution(grossPay), grossPay * 0.1); // Cap at 10% of gross
-        double philHealthDeduction = Math.min(calculatePhilHealthContribution(grossPay), grossPay * 0.03); // Cap at 3%
-        double pagIbigDeduction = Math.min(calculatePagIbigContribution(grossPay), grossPay * 0.02); // Cap at 2%
-        
-        // Calculate taxable income (Gross - non-taxable deductions)
-        double taxableIncome = grossPay - (sssDeduction + philHealthDeduction + pagIbigDeduction);
-        
-        // Calculate withholding tax
-        double withholdingTax = Math.min(calculateWithholdingTax(taxableIncome), taxableIncome * 0.2); // Cap at 20%
-        
-        // Final net pay calculation - ensure it doesn't go negative
-        double netPay = grossPay - (sssDeduction + philHealthDeduction + pagIbigDeduction + withholdingTax);
-        return Math.max(netPay, 0.0); // Ensure net pay is never negative
-    }
-    
-    // Calculate SSS contribution based on gross pay
-    private static double calculateSSSContribution(double grossPay) {
-        // Find the applicable bracket in the SSS table
-        double contribution = 0.0;
-        
-        for (Map.Entry<Double, Double> entry : SSS_TABLE.entrySet()) {
-            if (grossPay < entry.getKey()) {
-                contribution = entry.getValue();
-                break;
-            }
-        }
-        
-        return contribution;
-    }
-    
-    // Calculate PhilHealth contribution (3% of monthly basic salary, divided by 2 for semi-monthly)
-    private static double calculatePhilHealthContribution(double grossPay) {
-        // PhilHealth is 3% of gross pay, split equally between employer and employee
-        return (grossPay * 0.03) / 2;
-    }
-    
-    // Calculate Pag-IBIG contribution (2% of monthly basic salary)
-    private static double calculatePagIbigContribution(double grossPay) {
-        // Employee contribution is 2% of gross pay
-        return grossPay * 0.02;
-    }
-    
-    // Calculate withholding tax based on taxable income
-    private static double calculateWithholdingTax(double taxableIncome) {
-        // Apply progressive tax rates based on taxable income
-        if (taxableIncome <= 0) {
-            return 0.0;
-        } else if (taxableIncome <= 2083) {
-            return 0.0; // 0% tax for income up to 2,083
-        } else if (taxableIncome <= 33333) {
-            return (taxableIncome - 2083) * 0.20; // 20% of the excess over 2,083
-        } else if (taxableIncome <= 66667) {
-            return 6250 + (taxableIncome - 33333) * 0.25; // 6,250 plus 25% of the excess over 33,333
-        } else if (taxableIncome <= 166667) {
-            return 14583.33 + (taxableIncome - 66667) * 0.30; // 14,583.33 plus 30% of the excess over 66,667
-        } else if (taxableIncome <= 666667) {
-            return 44583.33 + (taxableIncome - 166667) * 0.32; // 44,583.33 plus 32% of the excess over 166,667
-        } else {
-            return 204583.33 + (taxableIncome - 666667) * 0.35; // 204,583.33 plus 35% of the excess over 666,667
         }
     }
 
