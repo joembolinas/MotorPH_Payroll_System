@@ -717,63 +717,80 @@ public class MotorPHPayroll {
     }
 
     /**
-     * Extracts or calculates the hourly rate for an employee based on available data.
-     * The method tries multiple approaches in the following order:
-     * 1. Direct hourly rate from column 18
-     * 2. Calculated from basic salary in column 13 (salary / 21 days / 8 hours)
-     * 3. Position-based default rates if neither is available
-     *
-     * @param employee The employee record as a string array
-     * @return The hourly rate for the employee
+     * Extracts or calculates the hourly rate for an employee.
+     * @param employee The employee record
+     * @return The hourly rate
      */
     private static double extractHourlyRate(String[] employee) {
+        // Try different methods in sequence
+        double rate = extractDirectHourlyRate(employee);
+        if (rate > 0) return rate;
+        
+        rate = calculateRateFromBasicSalary(employee);
+        if (rate > 0) return rate;
+        
+        return getDefaultRateByPosition(employee);
+    }
+
+    /**
+     * Attempts to extract the direct hourly rate from the employee record.
+     * @param employee The employee record
+     * @return The extracted hourly rate, or 0 if not available
+     */
+    private static double extractDirectHourlyRate(String[] employee) {
         try {
-            // First try to get hourly rate directly from column 18 (index 18)
-            if (employee.length > 18 && employee[18] != null) {
-                String rateString = employee[18];
-                // Clean the string by removing any non-numeric characters except decimal point
-                rateString = rateString.replaceAll("[^0-9.]", "").trim();
-                
+            if (employee.length > HOURLY_RATE_COL && employee[HOURLY_RATE_COL] != null) {
+                String rateString = employee[HOURLY_RATE_COL].replaceAll("[^0-9.]", "").trim();
                 if (!rateString.isEmpty()) {
                     double rate = Double.parseDouble(rateString);
-                    if (rate > 0) {
-                        return rate; // Valid rate found, return it
-                    }
+                    if (rate > 0) return rate;
                 }
             }
-            
-            // If direct hourly rate fails, calculate from basic salary with the correct formula
-            // Basic salary is in column 13 (index 13)
-            if (employee.length > 13 && employee[13] != null) {
-                String salaryString = employee[13].replaceAll("[^0-9.]", "").trim();
-                
+            return 0.0;
+        } catch (Exception e) {
+            return 0.0;
+        }
+    }
+
+    /**
+     * Calculates hourly rate from the basic salary.
+     * @param employee The employee record
+     * @return The calculated hourly rate, or 0 if not available
+     */
+    private static double calculateRateFromBasicSalary(String[] employee) {
+        try {
+            if (employee.length > BASIC_SALARY_COL && employee[BASIC_SALARY_COL] != null) {
+                String salaryString = employee[BASIC_SALARY_COL].replaceAll("[^0-9.]", "").trim();
                 if (!salaryString.isEmpty()) {
                     double basicSalary = Double.parseDouble(salaryString);
-                    // Updated formula: (basicSalary / 21) / 8
-                    return (basicSalary / 21.0) / 8.0;
+                    return (basicSalary / WORK_DAYS_PER_MONTH) / REGULAR_HOURS_PER_DAY;
                 }
             }
-            
-            // If neither direct rate nor basic salary works, use position-based rates
-            if (employee.length > 11) {
-                String position = employee[11];
-                if (position != null) {
-                    position = position.toLowerCase();
-                    if (position.contains("chief") || position.contains("ceo")) {
-                        return 535.71;
-                    } else if (position.contains("manager") || position.contains("head")) {
-                        return 313.51;
-                    } else if (position.contains("team leader")) {
-                        return 255.80;
-                    } else {
-                        return 133.93;
-                    }
-                }
-            }
-            
-            return 133.93; // Default fallback
+            return 0.0;
         } catch (Exception e) {
-            // Silently handle any errors and return default rate
+            return 0.0;
+        }
+    }
+
+    /**
+     * Gets a default rate based on the employee's position.
+     * @param employee The employee record
+     * @return A default hourly rate based on position
+     */
+    private static double getDefaultRateByPosition(String[] employee) {
+        try {
+            if (employee.length > POSITION_COL && employee[POSITION_COL] != null) {
+                String position = employee[POSITION_COL].toLowerCase();
+                if (position.contains("chief") || position.contains("ceo")) {
+                    return 535.71;
+                } else if (position.contains("manager") || position.contains("head")) {
+                    return 313.51;
+                } else if (position.contains("team leader")) {
+                    return 255.80;
+                }
+            }
+            return 133.93; // Default rate for regular employees
+        } catch (Exception e) {
             return 133.93;
         }
     }
