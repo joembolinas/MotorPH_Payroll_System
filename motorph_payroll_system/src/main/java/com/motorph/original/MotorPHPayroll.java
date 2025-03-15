@@ -15,21 +15,44 @@ import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
 
+/**
+ * The MotorPH Payroll System is a comprehensive Java application for managing
+ * employee information, calculating payroll, and generating reports for MotorPH company.
+ * 
+ * This system enables:
+ * - Employee data management (search, list, view attendance)
+ * - Payroll processing (for all employees or individual employees)
+ * - Report generation (payslips, weekly and monthly summaries)
+ * 
+ * The application loads employee and attendance data from online CSV sources
+ * and processes this information to calculate pay and deductions.
+ */
 public class MotorPHPayroll {
 
     // Constants
+    /**
+     * Pay rate constants used for calculating overtime and determining
+     * standard working hours and days
+     */
     private static final double OVERTIME_RATE = 1.25; // 25% additional pay for overtime
     private static final int REGULAR_HOURS_PER_DAY = 8;
     private static final int WORK_DAYS_PER_MONTH = 21;
     private static final LocalTime LATE_THRESHOLD = LocalTime.of(8, 10); // 8:10 AM
 
-    // Date and time format constants
+    /**
+     * Date and time format constants for standardized parsing and display
+     * of dates and times throughout the application
+     */
     private static final String DATE_FORMAT_PATTERN = "MM/dd/yyyy";
     private static final String TIME_FORMAT_PATTERN = "H:mm";
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern(DATE_FORMAT_PATTERN);
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern(TIME_FORMAT_PATTERN);
 
-    // Employee data column indices
+    /**
+     * Employee data column indices for accessing specific information
+     * from the employee data arrays. These map to the columns in the
+     * employee CSV file.
+     */
     private static final int EMP_ID_COL = 0;
     private static final int LAST_NAME_COL = 1;
     private static final int FIRST_NAME_COL = 2;
@@ -38,18 +61,40 @@ public class MotorPHPayroll {
     private static final int BASIC_SALARY_COL = 13;
     private static final int HOURLY_RATE_COL = 18;
 
-    // Attendance record column indices
+    /**
+     * Attendance record column indices for accessing specific information
+     * from the attendance data arrays. These map to the columns in the
+     * attendance CSV file.
+     */
     private static final int ATT_EMP_ID_COL = 0;
     private static final int ATT_DATE_COL = 3;
     private static final int ATT_TIME_IN_COL = 4;
     private static final int ATT_TIME_OUT_COL = 5;
 
+    /**
+     * The SSS (Social Security System) contribution table mapping salary brackets
+     * to corresponding contribution amounts
+     */
     private static final Map<Double, Double> SSS_TABLE = initSSSTable();
+    
+    /**
+     * PayrollCalculator instance for handling all payroll calculation logic
+     */
     private static final PayrollCalculator payrollCalculator = new PayrollCalculator();
     
-    // In-memory storage for posted payrolls
+    /**
+     * In-memory storage for posted payrolls, indexed by a composite key of:
+     * "employeeId_startDate_endDate"
+     */
     private static final Map<String, Map<String, Object>> postedPayrolls = new HashMap<>();
 
+    /**
+     * Main entry point for the MotorPH Payroll System.
+     * Initializes the application, loads data from online sources,
+     * and presents the main menu for user interaction.
+     *
+     * @param args Command line arguments (not used)
+     */
     public static void main(String[] args) {
         List<String[]> employees = new ArrayList<>();
         List<String[]> attendanceRecords = new ArrayList<>();
@@ -62,8 +107,8 @@ public class MotorPHPayroll {
                     "https://docs.google.com/spreadsheets/d/e/2PACX-1vTqBrLETQHcACenfV0_VSgV_uEGH5Cne2Vuw-oN2yDGRH5wWS8x8CcAXAV8iSNugtwWB_oVCuOlcFYT/pub?output=csv");
 
         } catch (IOException e) {
-            System.err.println("Error loading data: " + e.getMessage());
-            System.exit(1);
+            System.err.println("Error loading data: " + e.getMessage()); // Print error message
+            System.exit(1); 
         }
 
         // Main menu loop
@@ -222,7 +267,18 @@ public class MotorPHPayroll {
         return employees;
     }
 
-    // Load Attendance from CSV
+    /**
+     * Loads attendance data from a CSV file accessible via the provided URL.
+     * This method parses the CSV, skipping the header row, and creates an array
+     * of attendance records for processing.
+     *
+     * Unlike the employee data loader, this method uses simple comma splitting
+     * as attendance data typically doesn't contain quoted fields.
+     *
+     * @param url The URL of the CSV file containing attendance data
+     * @return A list of string arrays, where each array represents an attendance record
+     * @throws IOException If there's an error accessing or parsing the CSV file or if no valid records are found
+     */
     private static List<String[]> loadAttendanceFromCSV(String url) throws IOException {
         List<String[]> attendanceRecords = new ArrayList<>();
         try (BufferedReader br = new BufferedReader(new InputStreamReader(new URL(url).openStream()))) {
@@ -250,7 +306,15 @@ public class MotorPHPayroll {
         return attendanceRecords;
     }
 
-    // Employee Management Menu
+    /**
+     * Displays the employee management menu and handles user interactions for
+     * employee-related operations. This includes searching for employees,
+     * listing all employees, and viewing attendance records.
+     *
+     * @param employees The list of employee records
+     * @param attendanceRecords The list of attendance records
+     * @param scanner Scanner for reading user input
+     */
     private static void employeeManagement(List<String[]> employees, List<String[]> attendanceRecords, Scanner scanner) {
         while (true) {
             System.out.println("\nEmployee Management:");
@@ -277,7 +341,15 @@ public class MotorPHPayroll {
         }
     }
 
-    // Payroll Management Menu
+    /**
+     * Displays the payroll management menu and handles user interactions for
+     * payroll-related operations. This includes generating payroll for all employees
+     * and creating custom payroll for specific employees.
+     *
+     * @param employees The list of employee records
+     * @param attendanceRecords The list of attendance records
+     * @param scanner Scanner for reading user input
+     */
     private static void payrollManagement(List<String[]> employees, List<String[]> attendanceRecords, Scanner scanner) {
         while (true) {
             System.out.println("\nPayroll Management:");
@@ -302,7 +374,15 @@ public class MotorPHPayroll {
         }
     }
     
-    // Reports Menu
+    /**
+     * Displays the reports menu and handles user interactions for
+     * report generation. This includes payslips, weekly summaries,
+     * and monthly summaries.
+     *
+     * @param employees The list of employee records
+     * @param attendanceRecords The list of attendance records
+     * @param scanner Scanner for reading user input
+     */
     private static void reportsMenu(List<String[]> employees, List<String[]> attendanceRecords, Scanner scanner) {
         while (true) {
             System.out.println("\nReports:");
@@ -329,7 +409,16 @@ public class MotorPHPayroll {
         }
     }
 
-    // Generate Payroll with better formatting
+    /**
+     * Generates payroll for all employees within a specified date range.
+     * Calculates hours worked, gross pay, and net pay for each employee and
+     * displays a formatted payroll report. Also provides options to post
+     * or edit the payroll.
+     *
+     * @param employees The list of employee records
+     * @param attendanceRecords The list of attendance records
+     * @param scanner Scanner for reading user input
+     */
     private static void generatePayroll(List<String[]> employees, List<String[]> attendanceRecords, Scanner scanner) {
         System.out.println("\nGenerate Payroll:");
         System.out.print("Date From (MM/DD/YYYY): ");
@@ -402,7 +491,15 @@ public class MotorPHPayroll {
         }
     }
     
-    // Custom Payroll for Specific Employee
+    /**
+     * Generates a custom payroll report for a specific employee within a date range.
+     * Prompts the user for employee number and date range, then calculates and displays
+     * the hours worked, gross pay, and net pay for that employee.
+     *
+     * @param employees The list of employee records
+     * @param attendanceRecords The list of attendance records
+     * @param scanner Scanner for reading user input
+     */
     private static void customPayroll(List<String[]> employees, List<String[]> attendanceRecords, Scanner scanner) {
         System.out.print("\nEnter Employee No: ");
         int empNumber;
@@ -466,7 +563,16 @@ public class MotorPHPayroll {
         }
     }
     
-    // Generate Payslip Report
+    /**
+     * Generates a payslip report for a specific employee within a date range.
+     * If a payroll has already been posted for this employee and date range,
+     * it uses the posted information. Otherwise, it calculates the payroll
+     * information on the fly.
+     *
+     * @param employees The list of employee records
+     * @param attendanceRecords The list of attendance records
+     * @param scanner Scanner for reading user input
+     */
     private static void generatePayslipReport(List<String[]> employees, List<String[]> attendanceRecords, Scanner scanner) {
         System.out.print("\nEnter Employee No: ");
         int empNumber;
@@ -516,7 +622,14 @@ public class MotorPHPayroll {
         }
     }
     
-    // Generate Weekly Summary Report
+    /**
+     * Generates a weekly summary report for all employees.
+     * Shows employee number, name, total work hours, net pay, and gross pay
+     * based on posted payroll data or estimated values if no posted data exists.
+     *
+     * @param employees The list of employee records
+     * @param attendanceRecords The list of attendance records
+     */
     private static void generateWeeklySummary(List<String[]> employees, List<String[]> attendanceRecords) {
         System.out.println("\nWeekly Summary Report:");
         System.out.printf("%-10s %-20s %-15s %-10s %-10s%n", 
@@ -549,7 +662,16 @@ public class MotorPHPayroll {
         }
     }
     
-    // Generate Monthly Summary Report
+    /**
+     * Generates a monthly summary report for all employees.
+     * Shows employee number, name, total work hours, net pay, and gross pay
+     * based on posted payroll data or estimated values if no posted data exists.
+     * If no posted data exists, the system uses an approximation of 160 hours
+     * per month for the calculation.
+     *
+     * @param employees The list of employee records
+     * @param attendanceRecords The list of attendance records
+     */
     private static void generateMonthlySummary(List<String[]> employees, List<String[]> attendanceRecords) {
         System.out.println("\nMonthly Summary Report:");
         System.out.printf("%-10s %-20s %-15s %-10s %-10s%n", 
@@ -589,7 +711,17 @@ public class MotorPHPayroll {
         }
     }
     
-    // View Attendance Records
+    /**
+     * Displays attendance records for a specific employee within a date range.
+     * Shows the date, time in, time out, duration (hours worked), and remarks
+     * (whether the employee was on time or late) for each day in the range.
+     *
+     * An employee is considered late if they logged in after 8:10 AM.
+     *
+     * @param employees The list of employee records
+     * @param attendanceRecords The list of attendance records
+     * @param scanner Scanner for reading user input
+     */
     private static void viewAttendance(List<String[]> employees, List<String[]> attendanceRecords, Scanner scanner) {
         System.out.print("\nEnter Employee No: ");
         int empNumber;
@@ -795,7 +927,13 @@ public class MotorPHPayroll {
         }
     }
 
-    // Get Date Input
+    /**
+     * Prompts the user to input a date and parses it using a consistent format.
+     * If the input is invalid, the method will prompt the user to try again.
+     *
+     * @param scanner Scanner for reading user input
+     * @return A LocalDate object representing the input date
+     */
     private static LocalDate getDateInput(Scanner scanner) {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MM/dd/yyyy");
         while (true) {
@@ -809,7 +947,14 @@ public class MotorPHPayroll {
         }
     }
 
-    // Search Employee
+    /**
+     * Searches for employees based on a user-provided search term.
+     * The search is performed on employee number, first name, and last name,
+     * and results are displayed in a formatted table.
+     *
+     * @param employees The list of employee records
+     * @param scanner Scanner for reading user input
+     */
     private static void searchEmployee(List<String[]> employees, Scanner scanner) {
         System.out.print("\nEnter search term (name or employee number): ");
         String searchTerm = scanner.nextLine().toLowerCase();
@@ -840,7 +985,13 @@ public class MotorPHPayroll {
         }
     }
 
-    // List All Employees with correct column mapping
+    /**
+     * Displays a formatted list of all employees with their basic information.
+     * The list includes employee number, name, position, status, and hourly rate.
+     * For positions with long names, the text is truncated with ellipsis (...).
+     *
+     * @param employees The list of employee records
+     */
     private static void listAllEmployees(List<String[]> employees) {
         System.out.printf("%-10s %-25s %-20s %-15s %-15s%n",
                 "Emp#", "Name", "Position", "Status", "Hourly Rate");
@@ -867,7 +1018,14 @@ public class MotorPHPayroll {
         }
     }
 
-    // Find Employee by ID
+    /**
+     * Finds an employee record by their employee number.
+     * Returns null if no employee with the given number is found.
+     *
+     * @param employees The list of employee records
+     * @param empNumber The employee number to search for
+     * @return The employee record (as a string array) or null if not found
+     */
     private static String[] findEmployeeById(List<String[]> employees, int empNumber) {
         for (String[] employee : employees) {
             try {
@@ -881,7 +1039,13 @@ public class MotorPHPayroll {
         return null;
     }
 
-    // Improved employee name formatting - remove birth date information
+    /**
+     * Formats an employee's name by combining first name and last name.
+     * This method ensures consistent name formatting throughout the application.
+     *
+     * @param employee The employee record
+     * @return The formatted full name (First Name + Last Name)
+     */
     private static String formatEmployeeName(String[] employee) {
         // Only use the first and last name fields, ignore date fields
         String firstName = employee[2].trim();
@@ -895,7 +1059,13 @@ public class MotorPHPayroll {
         return firstName + " " +  lastName;
     }
 
-    // Add this debugging method to print the structure of an employee record
+    /**
+     * Prints detailed information about an employee record for debugging purposes.
+     * This helps identify the structure and content of employee records, especially
+     * during initial data loading.
+     *
+     * @param employee The employee record to debug
+     */
     private static void debugEmployeeRecord(String[] employee) {
         System.out.println("Employee record has " + employee.length + " columns");
         for (int i = 0; i < employee.length; i++) {
