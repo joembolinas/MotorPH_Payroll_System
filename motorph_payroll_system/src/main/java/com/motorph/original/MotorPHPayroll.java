@@ -688,26 +688,146 @@ public class MotorPHPayroll {
         Map<String, Object> payrollEntry = postedPayrolls.get(key);
         
         if (payrollEntry != null) {
-            // Use the posted payroll information
-            System.out.println("\nPayslip:");
-            System.out.println("Employee No: " + empNumber + " | Name: " + payrollEntry.get("name"));
-            System.out.printf("Total Work Hours: %.2f | Gross Pay: %.2f | Net Pay: %.2f%n", 
-                    (double) payrollEntry.get("totalHours"), 
-                    (double) payrollEntry.get("grossPay"), 
-                    (double) payrollEntry.get("netPay"));
+            // Use the posted payroll information with full details
+            System.out.println("\n═══════════════════════════════════════════");
+            System.out.println("           EMPLOYEE PAYSLIP");
+            System.out.println("═══════════════════════════════════════════");
+            System.out.println("Employee No: " + empNumber);
+            System.out.println("Name: " + payrollEntry.get("name"));
+            System.out.println("Position: " + (employee.length > POSITION_COL ? employee[POSITION_COL] : "N/A"));
+            System.out.println("Period: " + startDate.format(DATE_FORMATTER) + " to " + endDate.format(DATE_FORMATTER));
+            System.out.println("Working Days: " + (int)(double)payrollEntry.get("workingDays") + " of " + WORK_DAYS_PER_MONTH + " days");
+            System.out.println("───────────────────────────────────────────");
+            System.out.println("HOURS WORKED:");
+            System.out.printf("Regular Hours: %.2f\n", (double)payrollEntry.get("regularHours"));
+            System.out.printf("Overtime Hours: %.2f\n", (double)payrollEntry.get("overtimeHours"));
+            System.out.printf("Total Hours: %.2f\n", (double)payrollEntry.get("totalHours"));
+            System.out.println("───────────────────────────────────────────");
+            System.out.println("PAY DETAILS:");
+            System.out.printf("Hourly Rate: ₱%.2f\n", (double)payrollEntry.get("hourlyRate"));
+            System.out.printf("Regular Pay: ₱%.2f\n", (double)payrollEntry.get("regularPay"));
+            System.out.printf("Overtime Pay: ₱%.2f\n", (double)payrollEntry.get("overtimePay"));
+            System.out.printf("Gross Pay: ₱%.2f\n", (double)payrollEntry.get("grossPay"));
+            System.out.println("───────────────────────────────────────────");
+            
+            double grossPay = (double)payrollEntry.get("grossPay");
+            double sumAfterDeductions = (double)payrollEntry.get("sumAfterDeductions");
+            
+            System.out.println("DEDUCTIONS:");
+            System.out.printf("SSS: ₱%.2f\n", payrollCalculator.calculateSSSContribution(grossPay));
+            System.out.printf("PhilHealth: ₱%.2f\n", payrollCalculator.calculatePhilHealthContribution(grossPay));
+            System.out.printf("Pag-IBIG: ₱%.2f\n", payrollCalculator.calculatePagIbigContribution(grossPay));
+            double withholdingTax = payrollCalculator.calculateWithholdingTax(grossPay - 
+                    payrollCalculator.calculateSSSContribution(grossPay) - 
+                    payrollCalculator.calculatePhilHealthContribution(grossPay) - 
+                    payrollCalculator.calculatePagIbigContribution(grossPay));
+            System.out.printf("Withholding Tax: ₱%.2f\n", withholdingTax);
+            System.out.printf("Total Deductions: ₱%.2f\n", (grossPay - sumAfterDeductions));
+            System.out.println("───────────────────────────────────────────");
+            
+            System.out.println("ALLOWANCES (Pro-rated for " + (int)(double)payrollEntry.get("workingDays") + " days):");
+            System.out.printf("Rice Subsidy: ₱%.2f\n", (double)payrollEntry.get("riceSubsidy"));
+            System.out.printf("Phone Allowance: ₱%.2f\n", (double)payrollEntry.get("phoneAllowance"));
+            System.out.printf("Clothing Allowance: ₱%.2f\n", (double)payrollEntry.get("clothingAllowance"));
+            System.out.printf("Total Allowances: ₱%.2f\n", (double)payrollEntry.get("totalAllowances"));
+            System.out.println("───────────────────────────────────────────");
+            System.out.printf("FINAL NET PAY: ₱%.2f\n", (double)payrollEntry.get("netPay"));
+            System.out.println("═══════════════════════════════════════════");
         } else {
-            // Calculate on the fly
-            double totalHours = calculateHoursWorked(attendanceRecords, empNumber, startDate, endDate);
+            // Calculate on the fly with full details
             double hourlyRate = extractHourlyRate(employee);
-            double grossPay = totalHours * hourlyRate;
-            double netPay = payrollCalculator.calculateNetPay(grossPay);
+            
+            // Get detailed pay breakdown with overtime
+            Map<String, Double> payDetails = getGrossPayDetails(attendanceRecords, empNumber, hourlyRate, startDate, endDate);
+            double regularHours = payDetails.get("regularHours");
+            double overtimeHours = payDetails.get("overtimeHours");
+            double regularPay = payDetails.get("regularPay");
+            double overtimePay = payDetails.get("overtimePay");
+            double grossPay = payDetails.get("totalPay");
+            
+            // Get pro-rated allowances
+            Map<String, Double> allowanceDetails = getProRatedAllowanceDetails(employee, startDate, endDate);
+            double riceSubsidy = allowanceDetails.get("riceSubsidy");
+            double phoneAllowance = allowanceDetails.get("phoneAllowance");
+            double clothingAllowance = allowanceDetails.get("clothingAllowance");
+            double totalAllowances = allowanceDetails.get("totalAllowances");
+            double workingDays = allowanceDetails.get("workingDays");
+            
+            // Calculate deductions and net pay
+            double sumAfterDeductions = payrollCalculator.calculateNetPay(grossPay);
+            double netPay = sumAfterDeductions + totalAllowances;
             
             String fullName = formatEmployeeName(employee);
             
-            System.out.println("\nPayslip:");
-            System.out.println("Employee No: " + empNumber + " | Name: " + fullName);
-            System.out.printf("Total Work Hours: %.2f | Gross Pay: %.2f | Net Pay: %.2f%n", 
-                    totalHours, grossPay, netPay);
+            // Enhanced output with detailed breakdown
+            System.out.println("\n═══════════════════════════════════════════");
+            System.out.println("           EMPLOYEE PAYSLIP");
+            System.out.println("═══════════════════════════════════════════");
+            System.out.println("Employee No: " + empNumber);
+            System.out.println("Name: " + fullName);
+            System.out.println("Position: " + (employee.length > POSITION_COL ? employee[POSITION_COL] : "N/A"));
+            System.out.println("Period: " + startDate.format(DATE_FORMATTER) + " to " + endDate.format(DATE_FORMATTER));
+            System.out.println("Working Days: " + (int)workingDays + " of " + WORK_DAYS_PER_MONTH + " days");
+            System.out.println("───────────────────────────────────────────");
+            System.out.println("HOURS WORKED:");
+            System.out.printf("Regular Hours: %.2f\n", regularHours);
+            System.out.printf("Overtime Hours: %.2f\n", overtimeHours);
+            System.out.printf("Total Hours: %.2f\n", regularHours + overtimeHours);
+            System.out.println("───────────────────────────────────────────");
+            System.out.println("PAY DETAILS:");
+            System.out.printf("Hourly Rate: ₱%.2f\n", hourlyRate);
+            System.out.printf("Regular Pay: ₱%.2f\n", regularPay);
+            System.out.printf("Overtime Pay: ₱%.2f\n", overtimePay);
+            System.out.printf("Gross Pay: ₱%.2f\n", grossPay);
+            System.out.println("───────────────────────────────────────────");
+            System.out.println("DEDUCTIONS:");
+            System.out.printf("SSS: ₱%.2f\n", payrollCalculator.calculateSSSContribution(grossPay));
+            System.out.printf("PhilHealth: ₱%.2f\n", payrollCalculator.calculatePhilHealthContribution(grossPay));
+            System.out.printf("Pag-IBIG: ₱%.2f\n", payrollCalculator.calculatePagIbigContribution(grossPay));
+            double withholdingTax = payrollCalculator.calculateWithholdingTax(grossPay - 
+                    payrollCalculator.calculateSSSContribution(grossPay) - 
+                    payrollCalculator.calculatePhilHealthContribution(grossPay) - 
+                    payrollCalculator.calculatePagIbigContribution(grossPay));
+            System.out.printf("Withholding Tax: ₱%.2f\n", withholdingTax);
+            System.out.printf("Total Deductions: ₱%.2f\n", (grossPay - sumAfterDeductions));
+            System.out.println("───────────────────────────────────────────");
+            System.out.println("ALLOWANCES (Pro-rated for " + (int)workingDays + " days):");
+            System.out.printf("Rice Subsidy: ₱%.2f\n", riceSubsidy);
+            System.out.printf("Phone Allowance: ₱%.2f\n", phoneAllowance);
+            System.out.printf("Clothing Allowance: ₱%.2f\n", clothingAllowance);
+            System.out.printf("Total Allowances: ₱%.2f\n", totalAllowances);
+            System.out.println("───────────────────────────────────────────");
+            System.out.printf("FINAL NET PAY: ₱%.2f\n", netPay);
+            System.out.println("═══════════════════════════════════════════");
+            
+            // Offer to save this calculation as a posted payroll
+            System.out.println("\nWould you like to save this payslip? (y/n): ");
+            String saveChoice = scanner.nextLine().trim().toLowerCase();
+            if (saveChoice.equals("y") || saveChoice.equals("yes")) {
+                // Create payroll entry
+                Map<String, Object> entry = new HashMap<>();
+                entry.put("empNumber", empNumber);
+                entry.put("name", fullName);
+                entry.put("totalHours", regularHours + overtimeHours);
+                entry.put("regularHours", regularHours);
+                entry.put("overtimeHours", overtimeHours);
+                entry.put("hourlyRate", hourlyRate);
+                entry.put("regularPay", regularPay);
+                entry.put("overtimePay", overtimePay);
+                entry.put("grossPay", grossPay);
+                entry.put("sumAfterDeductions", sumAfterDeductions);
+                entry.put("riceSubsidy", riceSubsidy);
+                entry.put("phoneAllowance", phoneAllowance);
+                entry.put("clothingAllowance", clothingAllowance);
+                entry.put("totalAllowances", totalAllowances);
+                entry.put("netPay", netPay);
+                entry.put("startDate", startDate);
+                entry.put("endDate", endDate);
+                entry.put("workingDays", workingDays);
+                
+                postedPayrolls.put(key, entry);
+                System.out.println("Payslip saved successfully.");
+            }
         }
     }
     
