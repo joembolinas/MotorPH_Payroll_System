@@ -946,34 +946,36 @@ public class MotorPHPayroll {
         System.out.print("Date To (MM/DD/YYYY): ");
         LocalDate endDate = getDateInput(scanner);
         
-        DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("MM/dd/yyyy");
-        DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("H:mm");
+        DateTimeFormatter outputDateFormatter = DateTimeFormatter.ofPattern("MM/dd/yyyy");
         
         System.out.printf("%-10s | %-6s | %-6s | %-9s | %-10s%n", 
                 "Date", "In", "Out", "Duration", "Remarks");
         
         boolean found = false;
         for (String[] record : attendanceRecords) {
-            if (Integer.parseInt(record[EMP_ID_COL]) == empNumber) {
+            if (isRecordForEmployee(record, empNumber)) {
                 try {
-                    LocalDate recordDate = LocalDate.parse(record[ATT_DATE_COL], DATE_FORMATTER);
-                    if (!recordDate.isBefore(startDate) && !recordDate.isAfter(endDate)) {
+                    // Use our flexible date parser
+                    LocalDate recordDate = parseFlexibleDate(record[ATT_DATE_COL]);
+                    
+                    if (recordDate != null && !recordDate.isBefore(startDate) && !recordDate.isAfter(endDate)) {
                         found = true;
-                        LocalTime timeIn = LocalTime.parse(record[ATT_TIME_IN_COL], timeFormatter);
-                        LocalTime timeOut = LocalTime.parse(record[ATT_TIME_OUT_COL], timeFormatter);
+                        LocalTime timeIn = LocalTime.parse(record[ATT_TIME_IN_COL], TIME_FORMATTER);
+                        LocalTime timeOut = LocalTime.parse(record[ATT_TIME_OUT_COL], TIME_FORMATTER);
                         
                         double duration = Duration.between(timeIn, timeOut).toMinutes() / 60.0;
                         String remarks = timeIn.isBefore(LATE_THRESHOLD) ? "On Time" : "Late";
                         
                         System.out.printf("%-10s | %-6s | %-6s | %-9.2f | %-10s%n", 
-                                recordDate.format(dateFormatter), 
-                                timeIn.format(timeFormatter), 
-                                timeOut.format(timeFormatter), 
+                                recordDate.format(outputDateFormatter), 
+                                timeIn.format(TIME_FORMATTER), 
+                                timeOut.format(TIME_FORMATTER), 
                                 duration, 
                                 remarks);
                     }
-                } catch (DateTimeParseException e) {
-                    System.err.println("Error parsing date/time for employee " + empNumber + ": " + e.getMessage());
+                } catch (Exception e) {
+                    // Silently skip problematic records instead of printing errors
+                    continue;
                 }
             }
         }
@@ -997,11 +999,16 @@ public class MotorPHPayroll {
         
         for (String[] record : attendanceRecords) {
             try {
-                if (isRecordForEmployee(record, empNumber) && isRecordInDateRange(record, startDate, endDate)) {
-                    totalHours += calculateHoursForRecord(record);
+                if (isRecordForEmployee(record, empNumber)) {
+                    LocalDate recordDate = parseFlexibleDate(record[ATT_DATE_COL]);
+                    
+                    if (recordDate != null && !recordDate.isBefore(startDate) && !recordDate.isAfter(endDate)) {
+                        totalHours += calculateHoursForRecord(record);
+                    }
                 }
             } catch (Exception e) {
-                System.err.println("Error processing attendance record: " + e.getMessage());
+                // Silently skip problematic records
+                continue;
             }
         }
         
@@ -1024,6 +1031,8 @@ public class MotorPHPayroll {
 
     /**
      * Checks if an attendance record falls within the specified date range.
+     * This method handles multiple date formats to ensure compatibility with various CSV sources.
+     * 
      * @param record The attendance record
      * @param startDate The start date of the range (inclusive)
      * @param endDate The end date of the range (inclusive)
@@ -1031,17 +1040,67 @@ public class MotorPHPayroll {
      */
     private static boolean isRecordInDateRange(String[] record, LocalDate startDate, LocalDate endDate) {
         try {
-            LocalDate recordDate = LocalDate.parse(record[ATT_DATE_COL], DATE_FORMATTER);
-            return !recordDate.isBefore(startDate) && !recordDate.isAfter(endDate);
-        } catch (DateTimeParseException e) {
+            String dateStr = record[ATT_DATE_COL];
+            LocalDate recordDate = parseFlexibleDate(dateStr);
+            
+            if (recordDate != null) {
+                return !recordDate.isBefore(startDate) && !recordDate.isAfter(endDate);
+            }
+            return false;
+        } catch (Exception e) {
+            // Silently handle any other parsing errors by excluding the record
             return false;
         }
     }
 
     /**
+     * Helper method to parse dates in multiple formats.
+     * Tries different common date formats to maximize compatibility.
+     * 
+     * @param dateStr The date string to parse
+     * @return The parsed LocalDate, or null if parsing fails
+     */
+    private static LocalDate parseFlexibleDate(String dateStr) {
+        // Define multiple formatters for different date patterns
+        DateTimeFormatter[] formatters = {
+            DateTimeFormatter.ofPattern("MM/dd/yyyy"),  // Standard format: 12/01/2024
+            DateTimeFormatter.ofPattern("M/d/yyyy"),    // Flexible format: 6/3/2024
+            DateTimeFormatter.ofPattern("M/dd/yyyy"),   // Mixed format: 6/03/2024
+            DateTimeFormatter.ofPattern("MM/d/yyyy")    // Mixed format: 06/3/2024
+        };
+        
+        // Try each formatter
+        for (DateTimeFormatter formatter : formatters) {
+            try {
+                return LocalDate.parse(dateStr, formatter);
+            } catch (DateTimeParseException e) {
+                // Try next formatter
+                continue;
+            }
+        }
+        
+        // If all formatters fail, try manual parsing as a last resort
+        try {
+            String[] parts = dateStr.split("/");
+            if (parts.length == 3) {
+                int month = Integer.parseInt(parts[0]);
+                int day = Integer.parseInt(parts[1]);
+                int year = Integer.parseInt(parts[2]);
+                return LocalDate.of(year, month, day);
+            }
+        } catch (Exception e) {
+            // Ignore and return null
+        }
+        
+        return null;  // Could not parse using any method
+    }
+
+    /**
      * Calculates the hours worked for a single attendance record.
+     * Handles potential parsing errors gracefully.
+     * 
      * @param record The attendance record
-     * @return Hours worked for this record
+     * @return Hours worked for this record, or 0 if parsing fails
      */
     private static double calculateHoursForRecord(String[] record) {
         try {
@@ -1052,7 +1111,7 @@ public class MotorPHPayroll {
             Duration duration = Duration.between(timeIn, timeOut);
             return duration.toMinutes() / 60.0;
         } catch (DateTimeParseException e) {
-            System.err.println("Error parsing time: " + e.getMessage());
+            // Silently return 0 for problematic records instead of printing errors
             return 0.0;
         }
     }
@@ -1436,18 +1495,6 @@ public class MotorPHPayroll {
 
     /**
      * Calculates the gross pay including overtime if applicable.
-     * Regular hours are paid at the normal hourly rate, while overtime
-     * hours are paid at a higher rate (typically 1.25x the regular rate).
-     * 
-     * This calculation is done per day rather than for the entire period
-     * to ensure overtime is calculated correctly (hours beyond 8 per day).
-     * 
-     * @param attendanceRecords The complete list of attendance records
-     * @param empNumber The employee ID
-     * @param hourlyRate The employee's hourly rate
-     * @param startDate The start date of the period
-     * @param endDate The end date of the period
-     * @return The gross pay including overtime pay if applicable
      */
     private static double calculateGrossPayWithOvertime(List<String[]> attendanceRecords, 
                                                int empNumber, 
@@ -1462,17 +1509,20 @@ public class MotorPHPayroll {
         // Group records by date
         for (String[] record : attendanceRecords) {
             try {
-                if (isRecordForEmployee(record, empNumber) && isRecordInDateRange(record, startDate, endDate)) {
-                    LocalDate recordDate = LocalDate.parse(record[ATT_DATE_COL], DATE_FORMATTER);
+                if (isRecordForEmployee(record, empNumber)) {
+                    LocalDate recordDate = parseFlexibleDate(record[ATT_DATE_COL]);
                     
-                    if (!recordsByDate.containsKey(recordDate)) {
-                        recordsByDate.put(recordDate, new ArrayList<>());
+                    if (recordDate != null && !recordDate.isBefore(startDate) && !recordDate.isAfter(endDate)) {
+                        if (!recordsByDate.containsKey(recordDate)) {
+                            recordsByDate.put(recordDate, new ArrayList<>());
+                        }
+                        
+                        recordsByDate.get(recordDate).add(record);
                     }
-                    
-                    recordsByDate.get(recordDate).add(record);
                 }
             } catch (Exception e) {
-                System.err.println("Error processing attendance record: " + e.getMessage());
+                // Silently skip problematic records
+                continue;
             }
         }
         
@@ -1500,13 +1550,6 @@ public class MotorPHPayroll {
 
     /**
      * Creates a detailed breakdown of regular and overtime hours and pay.
-     * 
-     * @param attendanceRecords The complete list of attendance records
-     * @param empNumber The employee ID
-     * @param hourlyRate The employee's hourly rate
-     * @param startDate The start date of the period
-     * @param endDate The end date of the period
-     * @return Map containing detailed breakdown of hours and pay
      */
     private static Map<String, Double> getGrossPayDetails(List<String[]> attendanceRecords, 
                                                 int empNumber, 
@@ -1525,17 +1568,20 @@ public class MotorPHPayroll {
         // Group records by date
         for (String[] record : attendanceRecords) {
             try {
-                if (isRecordForEmployee(record, empNumber) && isRecordInDateRange(record, startDate, endDate)) {
-                    LocalDate recordDate = LocalDate.parse(record[ATT_DATE_COL], DATE_FORMATTER);
+                if (isRecordForEmployee(record, empNumber)) {
+                    LocalDate recordDate = parseFlexibleDate(record[ATT_DATE_COL]);
                     
-                    if (!recordsByDate.containsKey(recordDate)) {
-                        recordsByDate.put(recordDate, new ArrayList<>());
+                    if (recordDate != null && !recordDate.isBefore(startDate) && !recordDate.isAfter(endDate)) {
+                        if (!recordsByDate.containsKey(recordDate)) {
+                            recordsByDate.put(recordDate, new ArrayList<>());
+                        }
+                        
+                        recordsByDate.get(recordDate).add(record);
                     }
-                    
-                    recordsByDate.get(recordDate).add(record);
                 }
             } catch (Exception e) {
-                System.err.println("Error processing attendance record: " + e.getMessage());
+                // Silently skip problematic records
+                continue;
             }
         }
         
