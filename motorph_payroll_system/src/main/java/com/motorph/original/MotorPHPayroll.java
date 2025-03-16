@@ -62,6 +62,13 @@ public class MotorPHPayroll {
     private static final int HOURLY_RATE_COL = 18;
 
     /**
+     * Employee allowance column indices
+     */
+    private static final int RICE_SUBSIDY_COL = 14;
+    private static final int PHONE_ALLOWANCE_COL = 15;
+    private static final int CLOTHING_ALLOWANCE_COL = 16;
+
+    /**
      * Attendance record column indices for accessing specific information
      * from the attendance data arrays. These map to the columns in the
      * attendance CSV file.
@@ -426,46 +433,64 @@ public class MotorPHPayroll {
         System.out.print("Date To (MM/DD/YYYY): ");
         LocalDate endDate = getDateInput(scanner);
 
-        System.out.println("═════════════════════════════════════════════════════════════════════════════");
-        System.out.printf("%-7s %-25s %-13s %-12s %-15s %-15s%n", 
-                "Emp#", "Name", "Hours", "Hourly Rate", "Gross Pay", "Net Pay");
-        System.out.println("─────────────────────────────────────────────────────────────────────────────");
+        System.out.println("═════════════════════════════════════════════════════════════════════════════════════════════════════════════");
+        System.out.printf("%-7s %-25s %-10s %-10s %-12s %-15s %-15s %-15s%n", 
+                "Emp#", "Name", "Reg Hours", "OT Hours", "Hourly Rate", "Gross Pay", "Allowances", "Net Pay");
+        System.out.println("─────────────────────────────────────────────────────────────────────────────────────────────────────────────");
         
         List<Map<String, Object>> payrollEntries = new ArrayList<>();
         
         for (String[] employee : employees) {
             int empNumber = Integer.parseInt(employee[0]);
-            double totalHours = calculateHoursWorked(attendanceRecords, empNumber, startDate, endDate);
             double hourlyRate = extractHourlyRate(employee);
-            double grossPay = totalHours * hourlyRate;
-            double netPay = payrollCalculator.calculateNetPay(grossPay);
             
-            // Format the name properly without birth date
+            // Calculate with new methods including overtime
+            Map<String, Double> payDetails = getGrossPayDetails(attendanceRecords, empNumber, hourlyRate, startDate, endDate);
+            double regularHours = payDetails.get("regularHours");
+            double overtimeHours = payDetails.get("overtimeHours");
+            double grossPay = payDetails.get("totalPay");
+            
+            // Get pro-rated allowances
+            Map<String, Double> allowanceDetails = getProRatedAllowanceDetails(employee, startDate, endDate);
+            double totalAllowances = allowanceDetails.get("totalAllowances");
+            double workingDays = allowanceDetails.get("workingDays");
+            
+            double sumAfterDeductions = payrollCalculator.calculateNetPay(grossPay);
+            double netPay = sumAfterDeductions + totalAllowances;
+            
+            // Format the name properly
             String fullName = formatEmployeeName(employee);
             
             // Format numbers with commas for thousands
-            System.out.printf("%-7s %-25s %13.2f %12.2f %15s %15s%n", 
+            System.out.printf("%-7s %-25s %10.2f %10.2f %12.2f %15s %15s %15s%n", 
                     employee[0], 
                     fullName, 
-                    totalHours, 
+                    regularHours,
+                    overtimeHours,
                     hourlyRate, 
-                    String.format("%,.2f", grossPay), 
+                    String.format("%,.2f", grossPay),
+                    String.format("%,.2f", totalAllowances),
                     String.format("%,.2f", netPay));
             
             // Store payroll entry for potential posting
             Map<String, Object> entry = new HashMap<>();
             entry.put("empNumber", empNumber);
             entry.put("name", fullName);
-            entry.put("totalHours", totalHours);
+            entry.put("regularHours", regularHours);
+            entry.put("overtimeHours", overtimeHours);
+            entry.put("totalHours", regularHours + overtimeHours);
             entry.put("hourlyRate", hourlyRate);
             entry.put("grossPay", grossPay);
+            entry.put("sumAfterDeductions", sumAfterDeductions);
+            entry.put("totalAllowances", totalAllowances);
             entry.put("netPay", netPay);
             entry.put("startDate", startDate);
             entry.put("endDate", endDate);
+            entry.put("workingDays", workingDays);
             payrollEntries.add(entry);
         }
         
-        System.out.println("═════════════════════════════════════════════════════════════════════════════");
+        System.out.println("═════════════════════════════════════════════════════════════════════════════════════════════════════════════");
         
         System.out.println("\n1. Post Payroll");
         System.out.println("2. Edit Payroll");
@@ -521,16 +546,70 @@ public class MotorPHPayroll {
         System.out.print("Date To (MM/DD/YYYY): ");
         LocalDate endDate = getDateInput(scanner);
         
-        double totalHours = calculateHoursWorked(attendanceRecords, empNumber, startDate, endDate);
         double hourlyRate = extractHourlyRate(employee);
-        double grossPay = totalHours * hourlyRate;
-        double netPay = payrollCalculator.calculateNetPay(grossPay);
+        
+        // Get detailed pay breakdown with overtime
+        Map<String, Double> payDetails = getGrossPayDetails(attendanceRecords, empNumber, hourlyRate, startDate, endDate);
+        double regularHours = payDetails.get("regularHours");
+        double overtimeHours = payDetails.get("overtimeHours");
+        double regularPay = payDetails.get("regularPay");
+        double overtimePay = payDetails.get("overtimePay");
+        double grossPay = payDetails.get("totalPay");
+        
+        // Get pro-rated allowances
+        Map<String, Double> allowanceDetails = getProRatedAllowanceDetails(employee, startDate, endDate);
+        double riceSubsidy = allowanceDetails.get("riceSubsidy");
+        double phoneAllowance = allowanceDetails.get("phoneAllowance");
+        double clothingAllowance = allowanceDetails.get("clothingAllowance");
+        double totalAllowances = allowanceDetails.get("totalAllowances");
+        double workingDays = allowanceDetails.get("workingDays");
+        
+        // Calculate deductions and net pay
+        double sumAfterDeductions = payrollCalculator.calculateNetPay(grossPay);
+        double netPay = sumAfterDeductions + totalAllowances;
         
         String fullName = formatEmployeeName(employee);
         
-        System.out.println("\nEmployee No: " + empNumber + " | Name: " + fullName);
-        System.out.printf("Total Work Hours: %.2f | Gross Pay: %.2f | Net Pay: %.2f%n", 
-                totalHours, grossPay, netPay);
+        // Enhanced output with detailed breakdown
+        System.out.println("\n═══════════════════════════════════════════");
+        System.out.println("           EMPLOYEE PAYSLIP");
+        System.out.println("═══════════════════════════════════════════");
+        System.out.println("Employee No: " + empNumber);
+        System.out.println("Name: " + fullName);
+        System.out.println("Position: " + (employee.length > POSITION_COL ? employee[POSITION_COL] : "N/A"));
+        System.out.println("Period: " + startDate.format(DATE_FORMATTER) + " to " + endDate.format(DATE_FORMATTER));
+        System.out.println("Working Days: " + (int)workingDays + " of " + WORK_DAYS_PER_MONTH + " days");
+        System.out.println("───────────────────────────────────────────");
+        System.out.println("HOURS WORKED:");
+        System.out.printf("Regular Hours: %.2f\n", regularHours);
+        System.out.printf("Overtime Hours: %.2f\n", overtimeHours);
+        System.out.printf("Total Hours: %.2f\n", regularHours + overtimeHours);
+        System.out.println("───────────────────────────────────────────");
+        System.out.println("PAY DETAILS:");
+        System.out.printf("Hourly Rate: ₱%.2f\n", hourlyRate);
+        System.out.printf("Regular Pay: ₱%.2f\n", regularPay);
+        System.out.printf("Overtime Pay: ₱%.2f\n", overtimePay);
+        System.out.printf("Gross Pay: ₱%.2f\n", grossPay);
+        System.out.println("───────────────────────────────────────────");
+        System.out.println("DEDUCTIONS:");
+        System.out.printf("SSS: ₱%.2f\n", payrollCalculator.calculateSSSContribution(grossPay));
+        System.out.printf("PhilHealth: ₱%.2f\n", payrollCalculator.calculatePhilHealthContribution(grossPay));
+        System.out.printf("Pag-IBIG: ₱%.2f\n", payrollCalculator.calculatePagIbigContribution(grossPay));
+        double withholdingTax = payrollCalculator.calculateWithholdingTax(grossPay - 
+                payrollCalculator.calculateSSSContribution(grossPay) - 
+                payrollCalculator.calculatePhilHealthContribution(grossPay) - 
+                payrollCalculator.calculatePagIbigContribution(grossPay));
+        System.out.printf("Withholding Tax: ₱%.2f\n", withholdingTax);
+        System.out.printf("Total Deductions: ₱%.2f\n", (grossPay - sumAfterDeductions));
+        System.out.println("───────────────────────────────────────────");
+        System.out.println("ALLOWANCES (Pro-rated for " + (int)workingDays + " days):");
+        System.out.printf("Rice Subsidy: ₱%.2f\n", riceSubsidy);
+        System.out.printf("Phone Allowance: ₱%.2f\n", phoneAllowance);
+        System.out.printf("Clothing Allowance: ₱%.2f\n", clothingAllowance);
+        System.out.printf("Total Allowances: ₱%.2f\n", totalAllowances);
+        System.out.println("───────────────────────────────────────────");
+        System.out.printf("FINAL NET PAY: ₱%.2f\n", netPay);
+        System.out.println("═══════════════════════════════════════════");
         
         System.out.println("\n1. Post Payroll");
         System.out.println("2. Edit Payroll");
@@ -539,16 +618,26 @@ public class MotorPHPayroll {
         try {
             int choice = Integer.parseInt(scanner.nextLine());
             if (choice == 1) {
-                // Post this payroll entry
+                // Post this payroll entry with detailed breakdown
                 Map<String, Object> entry = new HashMap<>();
                 entry.put("empNumber", empNumber);
                 entry.put("name", fullName);
-                entry.put("totalHours", totalHours);
+                entry.put("totalHours", regularHours + overtimeHours);
+                entry.put("regularHours", regularHours);
+                entry.put("overtimeHours", overtimeHours);
                 entry.put("hourlyRate", hourlyRate);
+                entry.put("regularPay", regularPay);
+                entry.put("overtimePay", overtimePay);
                 entry.put("grossPay", grossPay);
+                entry.put("sumAfterDeductions", sumAfterDeductions);
+                entry.put("riceSubsidy", riceSubsidy);
+                entry.put("phoneAllowance", phoneAllowance);
+                entry.put("clothingAllowance", clothingAllowance);
+                entry.put("totalAllowances", totalAllowances);
                 entry.put("netPay", netPay);
                 entry.put("startDate", startDate);
                 entry.put("endDate", endDate);
+                entry.put("workingDays", workingDays);
                 
                 String key = empNumber + "_" + startDate + "_" + endDate;
                 postedPayrolls.put(key, entry);
@@ -928,6 +1017,145 @@ public class MotorPHPayroll {
     }
 
     /**
+     * Extracts the Rice Subsidy amount from the employee record.
+     * This allowance is typically provided as a food assistance benefit.
+     * 
+     * @param employee The employee record
+     * @return The rice subsidy amount, or 0 if not available
+     */
+    private static double extractRiceSubsidy(String[] employee) {
+        try {
+            if (employee.length > RICE_SUBSIDY_COL && employee[RICE_SUBSIDY_COL] != null) {
+                String subsidyString = employee[RICE_SUBSIDY_COL].replaceAll("[^0-9.]", "").trim();
+                if (!subsidyString.isEmpty()) {
+                    return Double.parseDouble(subsidyString);
+                }
+            }
+            return 0.0;
+        } catch (Exception e) {
+            System.err.println("Error extracting rice subsidy: " + e.getMessage());
+            return 0.0;
+        }
+    }
+
+    /**
+     * Extracts the Phone Allowance amount from the employee record.
+     * This allowance is typically provided to cover communication expenses.
+     * 
+     * @param employee The employee record
+     * @return The phone allowance amount, or 0 if not available
+     */
+    private static double extractPhoneAllowance(String[] employee) {
+        try {
+            if (employee.length > PHONE_ALLOWANCE_COL && employee[PHONE_ALLOWANCE_COL] != null) {
+                String allowanceString = employee[PHONE_ALLOWANCE_COL].replaceAll("[^0-9.]", "").trim();
+                if (!allowanceString.isEmpty()) {
+                    return Double.parseDouble(allowanceString);
+                }
+            }
+            return 0.0;
+        } catch (Exception e) {
+            System.err.println("Error extracting phone allowance: " + e.getMessage());
+            return 0.0;
+        }
+    }
+
+    /**
+     * Extracts the Clothing Allowance amount from the employee record.
+     * This allowance is typically provided for work attire and uniform expenses.
+     * 
+     * @param employee The employee record
+     * @return The clothing allowance amount, or 0 if not available
+     */
+    private static double extractClothingAllowance(String[] employee) {
+        try {
+            if (employee.length > CLOTHING_ALLOWANCE_COL && employee[CLOTHING_ALLOWANCE_COL] != null) {
+                String allowanceString = employee[CLOTHING_ALLOWANCE_COL].replaceAll("[^0-9.]", "").trim();
+                if (!allowanceString.isEmpty()) {
+                    return Double.parseDouble(allowanceString);
+                }
+            }
+            return 0.0;
+        } catch (Exception e) {
+            System.err.println("Error extracting clothing allowance: " + e.getMessage());
+            return 0.0;
+        }
+    }
+
+    /**
+     * Calculates the pro-rated allowances for an employee based on the date range.
+     * Monthly allowances are pro-rated according to the number of working days
+     * in the specified period compared to the standard working days in a month.
+     * 
+     * @param employee The employee record
+     * @param startDate The start date of the pay period
+     * @param endDate The end date of the pay period
+     * @return The pro-rated total allowance amount
+     */
+    private static double calculateProRatedAllowances(String[] employee, LocalDate startDate, LocalDate endDate) {
+        // Extract full monthly allowances
+        double riceSubsidy = extractRiceSubsidy(employee);
+        double phoneAllowance = extractPhoneAllowance(employee);
+        double clothingAllowance = extractClothingAllowance(employee);
+        double totalMonthlyAllowances = riceSubsidy + phoneAllowance + clothingAllowance;
+        
+        // Calculate working days in the period (excluding weekends)
+        long totalDays = 0;
+        LocalDate currentDate = startDate;
+        while (!currentDate.isAfter(endDate)) {
+            // Check if it's a weekday (not Saturday or Sunday)
+            if (currentDate.getDayOfWeek().getValue() <= 5) {
+                totalDays++;
+            }
+            currentDate = currentDate.plusDays(1);
+        }
+        
+        // Pro-rate the allowances based on working days in period vs. standard month
+        double proRatedAllowances = (totalMonthlyAllowances / WORK_DAYS_PER_MONTH) * totalDays;
+        
+        return proRatedAllowances;
+    }
+
+    /**
+     * Gets the individual pro-rated allowances for detailed display.
+     * 
+     * @param employee The employee record
+     * @param startDate The start date of the pay period
+     * @param endDate The end date of the pay period
+     * @return Map containing pro-rated values for each allowance type
+     */
+    private static Map<String, Double> getProRatedAllowanceDetails(String[] employee, LocalDate startDate, LocalDate endDate) {
+        Map<String, Double> allowances = new HashMap<>();
+        
+        // Extract full monthly allowances
+        double riceSubsidy = extractRiceSubsidy(employee);
+        double phoneAllowance = extractPhoneAllowance(employee);
+        double clothingAllowance = extractClothingAllowance(employee);
+        
+        // Calculate working days in the period (excluding weekends)
+        long totalDays = 0;
+        LocalDate currentDate = startDate;
+        while (!currentDate.isAfter(endDate)) {
+            // Check if it's a weekday (not Saturday or Sunday)
+            if (currentDate.getDayOfWeek().getValue() <= 5) {
+                totalDays++;
+            }
+            currentDate = currentDate.plusDays(1);
+        }
+        
+        // Pro-rate each allowance based on working days in period vs. standard month
+        double proRateFactor = (double) totalDays / WORK_DAYS_PER_MONTH;
+        
+        allowances.put("riceSubsidy", riceSubsidy * proRateFactor);
+        allowances.put("phoneAllowance", phoneAllowance * proRateFactor);
+        allowances.put("clothingAllowance", clothingAllowance * proRateFactor);
+        allowances.put("totalAllowances", (riceSubsidy + phoneAllowance + clothingAllowance) * proRateFactor);
+        allowances.put("workingDays", (double) totalDays);
+        
+        return allowances;
+    }
+
+    /**
      * Prompts the user to input a date and parses it using a consistent format.
      * If the input is invalid, the method will prompt the user to try again.
      *
@@ -1084,5 +1312,141 @@ public class MotorPHPayroll {
         } else {
             System.out.println("Employee record doesn't have column 18 (hourly rate)");
         }
+    }
+
+    /**
+     * Calculates the gross pay including overtime if applicable.
+     * Regular hours are paid at the normal hourly rate, while overtime
+     * hours are paid at a higher rate (typically 1.25x the regular rate).
+     * 
+     * This calculation is done per day rather than for the entire period
+     * to ensure overtime is calculated correctly (hours beyond 8 per day).
+     * 
+     * @param attendanceRecords The complete list of attendance records
+     * @param empNumber The employee ID
+     * @param hourlyRate The employee's hourly rate
+     * @param startDate The start date of the period
+     * @param endDate The end date of the period
+     * @return The gross pay including overtime pay if applicable
+     */
+    private static double calculateGrossPayWithOvertime(List<String[]> attendanceRecords, 
+                                               int empNumber, 
+                                               double hourlyRate,
+                                               LocalDate startDate, 
+                                               LocalDate endDate) {
+        double totalPay = 0.0;
+        
+        // Group attendance by date to handle overtime on a daily basis
+        Map<LocalDate, List<String[]>> recordsByDate = new HashMap<>();
+        
+        // Group records by date
+        for (String[] record : attendanceRecords) {
+            try {
+                if (isRecordForEmployee(record, empNumber) && isRecordInDateRange(record, startDate, endDate)) {
+                    LocalDate recordDate = LocalDate.parse(record[ATT_DATE_COL], DATE_FORMATTER);
+                    
+                    if (!recordsByDate.containsKey(recordDate)) {
+                        recordsByDate.put(recordDate, new ArrayList<>());
+                    }
+                    
+                    recordsByDate.get(recordDate).add(record);
+                }
+            } catch (Exception e) {
+                System.err.println("Error processing attendance record: " + e.getMessage());
+            }
+        }
+        
+        // Calculate pay for each day, including overtime
+        for (Map.Entry<LocalDate, List<String[]>> entry : recordsByDate.entrySet()) {
+            double dailyHours = 0.0;
+            
+            // Sum up hours for this day
+            for (String[] record : entry.getValue()) {
+                dailyHours += calculateHoursForRecord(record);
+            }
+            
+            // Calculate pay with overtime
+            double regularHours = Math.min(dailyHours, REGULAR_HOURS_PER_DAY);
+            double overtimeHours = Math.max(0, dailyHours - REGULAR_HOURS_PER_DAY);
+            
+            double regularPay = regularHours * hourlyRate;
+            double overtimePay = overtimeHours * hourlyRate * OVERTIME_RATE;
+            
+            totalPay += regularPay + overtimePay;
+        }
+        
+        return totalPay;
+    }
+
+    /**
+     * Creates a detailed breakdown of regular and overtime hours and pay.
+     * 
+     * @param attendanceRecords The complete list of attendance records
+     * @param empNumber The employee ID
+     * @param hourlyRate The employee's hourly rate
+     * @param startDate The start date of the period
+     * @param endDate The end date of the period
+     * @return Map containing detailed breakdown of hours and pay
+     */
+    private static Map<String, Double> getGrossPayDetails(List<String[]> attendanceRecords, 
+                                                int empNumber, 
+                                                double hourlyRate,
+                                                LocalDate startDate, 
+                                                LocalDate endDate) {
+        Map<String, Double> payDetails = new HashMap<>();
+        double totalRegularHours = 0.0;
+        double totalOvertimeHours = 0.0;
+        double totalRegularPay = 0.0;
+        double totalOvertimePay = 0.0;
+        
+        // Group attendance by date to handle overtime on a daily basis
+        Map<LocalDate, List<String[]>> recordsByDate = new HashMap<>();
+        
+        // Group records by date
+        for (String[] record : attendanceRecords) {
+            try {
+                if (isRecordForEmployee(record, empNumber) && isRecordInDateRange(record, startDate, endDate)) {
+                    LocalDate recordDate = LocalDate.parse(record[ATT_DATE_COL], DATE_FORMATTER);
+                    
+                    if (!recordsByDate.containsKey(recordDate)) {
+                        recordsByDate.put(recordDate, new ArrayList<>());
+                    }
+                    
+                    recordsByDate.get(recordDate).add(record);
+                }
+            } catch (Exception e) {
+                System.err.println("Error processing attendance record: " + e.getMessage());
+            }
+        }
+        
+        // Calculate pay for each day, including overtime
+        for (Map.Entry<LocalDate, List<String[]>> entry : recordsByDate.entrySet()) {
+            double dailyHours = 0.0;
+            
+            // Sum up hours for this day
+            for (String[] record : entry.getValue()) {
+                dailyHours += calculateHoursForRecord(record);
+            }
+            
+            // Calculate pay with overtime
+            double regularHours = Math.min(dailyHours, REGULAR_HOURS_PER_DAY);
+            double overtimeHours = Math.max(0, dailyHours - REGULAR_HOURS_PER_DAY);
+            
+            double regularPay = regularHours * hourlyRate;
+            double overtimePay = overtimeHours * hourlyRate * OVERTIME_RATE;
+            
+            totalRegularHours += regularHours;
+            totalOvertimeHours += overtimeHours;
+            totalRegularPay += regularPay;
+            totalOvertimePay += overtimePay;
+        }
+        
+        payDetails.put("regularHours", totalRegularHours);
+        payDetails.put("overtimeHours", totalOvertimeHours);
+        payDetails.put("regularPay", totalRegularPay);
+        payDetails.put("overtimePay", totalOvertimePay);
+        payDetails.put("totalPay", totalRegularPay + totalOvertimePay);
+        
+        return payDetails;
     }
 }
