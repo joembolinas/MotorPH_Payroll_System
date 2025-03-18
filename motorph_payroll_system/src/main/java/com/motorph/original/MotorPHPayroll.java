@@ -1381,7 +1381,7 @@ public class MotorPHPayroll {
                 System.out.printf("%-10s %-20s %-20s %-15s %-15.2f%n", 
                         employee[0], 
                         fullName,
-                        employee.length > 8 ? employee[8] : "N/A",
+                        employee.length > 11 ? employee[11] : "N/A",
                         employee.length > 10 ? employee[10] : "N/A",
                         extractHourlyRate(employee));
             }
