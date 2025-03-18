@@ -1466,23 +1466,24 @@ public class MotorPHPayroll {
     }
 
     /**
-     * Formats an employee's name by combining first name and last name.
+     * Formats an employee's name by combining first name, middle name (if available), and last name.
      * This method ensures consistent name formatting throughout the application.
      *
      * @param employee The employee record
-     * @return The formatted full name (First Name + Last Name)
+     * @return The formatted full name
      */
     private static String formatEmployeeName(String[] employee) {
-        // Only use the first and last name fields, ignore date fields
-        String firstName = employee[2].trim();
-        String lastName = employee[1].trim();
-        
+        String firstName = employee[FIRST_NAME_COL].trim();
+        String lastName = employee[LAST_NAME_COL].trim();
+        String fullName = firstName + " ";
         
         // Check if there's a middle name/suffix and add it if present
         if (employee.length > 3 && employee[3] != null && !employee[3].trim().isEmpty()) {
+            fullName += employee[3].trim() + " ";
         }
         
-        return firstName + " " +  lastName;
+        fullName += lastName;
+        return fullName;
     }
 
     /**
