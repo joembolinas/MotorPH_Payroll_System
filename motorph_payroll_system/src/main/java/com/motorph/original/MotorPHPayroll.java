@@ -1356,7 +1356,7 @@ public class MotorPHPayroll {
 
     /**
      * Searches for employees based on a user-provided search term.
-     * The search is performed on employee number, first name, and last name,
+     * The search is performed on employee number, first name, last name, and middle name,
      * and results are displayed in a formatted table.
      *
      * @param employees The list of employee records
@@ -1371,19 +1371,38 @@ public class MotorPHPayroll {
         
         boolean found = false;
         for (String[] employee : employees) {
-            if (employee[0].contains(searchTerm) || 
-                employee[1].toLowerCase().contains(searchTerm) || 
-                employee[2].toLowerCase().contains(searchTerm)) {
+            // Skip header row if present
+            if (employee[0].equals("Employee #") || employee[0].equalsIgnoreCase("id")) {
+                continue;
+            }
+            
+            // Convert relevant fields to lowercase for case-insensitive search
+            String empId = employee[EMP_ID_COL].toLowerCase();
+            String lastName = employee[LAST_NAME_COL].toLowerCase();
+            String firstName = employee[FIRST_NAME_COL].toLowerCase();
+            String middleName = employee.length > 3 && employee[3] != null ? 
+                    employee[3].toLowerCase() : "";
+            
+            // Check if the search term matches any of the fields
+            if (empId.contains(searchTerm) || 
+                lastName.contains(searchTerm) || 
+                firstName.contains(searchTerm) || 
+                middleName.contains(searchTerm)) {
                 
                 found = true;
                 String fullName = formatEmployeeName(employee);
                 
+                // Use the defined constants instead of hardcoded indices
+                String position = employee.length > POSITION_COL && employee[POSITION_COL] != null ? 
+                    employee[POSITION_COL] : "N/A";
+                
+                String status = employee.length > STATUS_COL && employee[STATUS_COL] != null ? 
+                    employee[STATUS_COL] : "N/A";
+                
+                double hourlyRate = extractHourlyRate(employee);
+                
                 System.out.printf("%-10s %-20s %-20s %-15s %-15.2f%n", 
-                        employee[0], 
-                        fullName,
-                        employee.length > 11 ? employee[11] : "N/A",
-                        employee.length > 10 ? employee[10] : "N/A",
-                        extractHourlyRate(employee));
+                        employee[EMP_ID_COL], fullName, position, status, hourlyRate);
             }
         }
         
