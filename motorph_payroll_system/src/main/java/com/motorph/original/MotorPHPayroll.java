@@ -483,6 +483,11 @@ public class MotorPHPayroll {
             entry.put("grossPay", grossPay);
             entry.put("sumAfterDeductions", sumAfterDeductions);
             entry.put("totalAllowances", totalAllowances);
+            entry.put("sumAfterDeductions", sumAfterDeductions);
+            entry.put("riceSubsidy", allowanceDetails.get("riceSubsidy"));
+            entry.put("phoneAllowance", allowanceDetails.get("phoneAllowance"));
+            entry.put("clothingAllowance", allowanceDetails.get("clothingAllowance"));
+            entry.put("totalAllowances", totalAllowances);
             entry.put("netPay", netPay);
             entry.put("startDate", startDate);
             entry.put("endDate", endDate);
@@ -498,18 +503,17 @@ public class MotorPHPayroll {
         
         try {
             int choice = Integer.parseInt(scanner.nextLine());
-            if (choice == 1) {
-                // Post all payroll entries
-                for (Map<String, Object> entry : payrollEntries) {
-                    int empNumber = (int) entry.get("empNumber");
-                    String key = empNumber + "_" + entry.get("startDate") + "_" + entry.get("endDate");
-                    postedPayrolls.put(key, entry);
+            switch (choice) {
+                case 1 -> {
+                    // Post all payroll entries
+                    for (Map<String, Object> entry : payrollEntries) {
+                        int empNumber = (int) entry.get("empNumber");
+                        String key = empNumber + "_" + entry.get("startDate") + "_" + entry.get("endDate");
+                        postedPayrolls.put(key, entry);
+                    }   System.out.println("Payroll posted successfully.");
                 }
-                System.out.println("Payroll posted successfully.");
-            } else if (choice == 2) {
-                System.out.println("Edit payroll functionality not yet implemented.");
-            } else {
-                System.out.println("Invalid choice.");
+                case 2 -> System.out.println("Edit payroll functionality not yet implemented.");
+                default -> System.out.println("Invalid choice.");
             }
         } catch (NumberFormatException e) {
             System.err.println("Invalid input. Please enter a number.");
@@ -617,35 +621,34 @@ public class MotorPHPayroll {
         
         try {
             int choice = Integer.parseInt(scanner.nextLine());
-            if (choice == 1) {
-                // Post this payroll entry with detailed breakdown
-                Map<String, Object> entry = new HashMap<>();
-                entry.put("empNumber", empNumber);
-                entry.put("name", fullName);
-                entry.put("totalHours", regularHours + overtimeHours);
-                entry.put("regularHours", regularHours);
-                entry.put("overtimeHours", overtimeHours);
-                entry.put("hourlyRate", hourlyRate);
-                entry.put("regularPay", regularPay);
-                entry.put("overtimePay", overtimePay);
-                entry.put("grossPay", grossPay);
-                entry.put("sumAfterDeductions", sumAfterDeductions);
-                entry.put("riceSubsidy", riceSubsidy);
-                entry.put("phoneAllowance", phoneAllowance);
-                entry.put("clothingAllowance", clothingAllowance);
-                entry.put("totalAllowances", totalAllowances);
-                entry.put("netPay", netPay);
-                entry.put("startDate", startDate);
-                entry.put("endDate", endDate);
-                entry.put("workingDays", workingDays);
-                
-                String key = empNumber + "_" + startDate + "_" + endDate;
-                postedPayrolls.put(key, entry);
-                System.out.println("Payroll posted successfully.");
-            } else if (choice == 2) {
-                System.out.println("Edit payroll functionality not yet implemented.");
-            } else {
-                System.out.println("Invalid choice.");
+            switch (choice) {
+                case 1 -> {
+                    // Post this payroll entry with detailed breakdown
+                    Map<String, Object> entry = new HashMap<>();
+                    entry.put("empNumber", empNumber);
+                    entry.put("name", fullName);
+                    entry.put("totalHours", regularHours + overtimeHours);
+                    entry.put("regularHours", regularHours);
+                    entry.put("overtimeHours", overtimeHours);
+                    entry.put("hourlyRate", hourlyRate);
+                    entry.put("regularPay", regularPay);
+                    entry.put("overtimePay", overtimePay);
+                    entry.put("grossPay", grossPay);
+                    entry.put("sumAfterDeductions", sumAfterDeductions);
+                    entry.put("riceSubsidy", riceSubsidy);
+                    entry.put("phoneAllowance", phoneAllowance);
+                    entry.put("clothingAllowance", clothingAllowance);
+                    entry.put("totalAllowances", totalAllowances);
+                    entry.put("netPay", netPay);
+                    entry.put("startDate", startDate);
+                    entry.put("endDate", endDate);
+                    entry.put("workingDays", workingDays);
+                    String key = empNumber + "_" + startDate + "_" + endDate;
+                    postedPayrolls.put(key, entry);
+                    System.out.println("Payroll posted successfully.");
+                }
+                case 2 -> System.out.println("Edit payroll functionality not yet implemented.");
+                default -> System.out.println("Invalid choice.");
             }
         } catch (NumberFormatException e) {
             System.err.println("Invalid input. Please enter a number.");
@@ -726,9 +729,17 @@ public class MotorPHPayroll {
             System.out.println("───────────────────────────────────────────");
             
             System.out.println("ALLOWANCES (Pro-rated for " + (int)(double)payrollEntry.get("workingDays") + " days):");
-            System.out.printf("Rice Subsidy: ₱%.2f\n", (double)payrollEntry.get("riceSubsidy"));
-            System.out.printf("Phone Allowance: ₱%.2f\n", (double)payrollEntry.get("phoneAllowance"));
-            System.out.printf("Clothing Allowance: ₱%.2f\n", (double)payrollEntry.get("clothingAllowance"));
+            
+            double riceSubsidy = payrollEntry.containsKey("riceSubsidy") ? 
+                (double)payrollEntry.get("riceSubsidy") : 0.0;
+            double phoneAllowance = payrollEntry.containsKey("phoneAllowance") ? 
+                (double)payrollEntry.get("phoneAllowance") : 0.0;
+            double clothingAllowance = payrollEntry.containsKey("clothingAllowance") ? 
+                (double)payrollEntry.get("clothingAllowance") : 0.0;
+            
+            System.out.printf("Rice Subsidy: ₱%.2f\n", riceSubsidy);
+            System.out.printf("Phone Allowance: ₱%.2f\n", phoneAllowance);
+            System.out.printf("Clothing Allowance: ₱%.2f\n", clothingAllowance);
             System.out.printf("Total Allowances: ₱%.2f\n", (double)payrollEntry.get("totalAllowances"));
             System.out.println("───────────────────────────────────────────");
             System.out.printf("FINAL NET PAY: ₱%.2f\n", (double)payrollEntry.get("netPay"));
@@ -1466,7 +1477,7 @@ public class MotorPHPayroll {
     }
 
     /**
-     * Formats an employee's name by combining first name, middle name (if available), and last name.
+     * Formats an employee's name by combining first name and last name.
      * This method ensures consistent name formatting throughout the application.
      *
      * @param employee The employee record
@@ -1475,15 +1486,7 @@ public class MotorPHPayroll {
     private static String formatEmployeeName(String[] employee) {
         String firstName = employee[FIRST_NAME_COL].trim();
         String lastName = employee[LAST_NAME_COL].trim();
-        String fullName = firstName + " ";
-        
-        // Check if there's a middle name/suffix and add it if present
-        if (employee.length > 3 && employee[3] != null && !employee[3].trim().isEmpty()) {
-            fullName += employee[3].trim() + " ";
-        }
-        
-        fullName += lastName;
-        return fullName;
+        return firstName + " " + lastName;
     }
 
     /**
