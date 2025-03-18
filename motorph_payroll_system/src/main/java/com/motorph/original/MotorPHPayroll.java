@@ -1513,62 +1513,16 @@ public class MotorPHPayroll {
     }
 
     /**
-     * Calculates the gross pay including overtime if applicable.
-     */
-    private static double calculateGrossPayWithOvertime(List<String[]> attendanceRecords, 
-                                               int empNumber, 
-                                               double hourlyRate,
-                                               LocalDate startDate, 
-                                               LocalDate endDate) {
-        double totalPay = 0.0;
-        
-        // Group attendance by date to handle overtime on a daily basis
-        Map<LocalDate, List<String[]>> recordsByDate = new HashMap<>();
-        
-        // Group records by date
-        for (String[] record : attendanceRecords) {
-            try {
-                if (isRecordForEmployee(record, empNumber)) {
-                    LocalDate recordDate = parseFlexibleDate(record[ATT_DATE_COL]);
-                    
-                    if (recordDate != null && !recordDate.isBefore(startDate) && !recordDate.isAfter(endDate)) {
-                        if (!recordsByDate.containsKey(recordDate)) {
-                            recordsByDate.put(recordDate, new ArrayList<>());
-                        }
-                        
-                        recordsByDate.get(recordDate).add(record);
-                    }
-                }
-            } catch (Exception e) {
-                // Silently skip problematic records
-                continue;
-            }
-        }
-        
-        // Calculate pay for each day, including overtime
-        for (Map.Entry<LocalDate, List<String[]>> entry : recordsByDate.entrySet()) {
-            double dailyHours = 0.0;
-            
-            // Sum up hours for this day
-            for (String[] record : entry.getValue()) {
-                dailyHours += calculateHoursForRecord(record);
-            }
-            
-            // Calculate pay with overtime
-            double regularHours = Math.min(dailyHours, REGULAR_HOURS_PER_DAY);
-            double overtimeHours = Math.max(0, dailyHours - REGULAR_HOURS_PER_DAY);
-            
-            double regularPay = regularHours * hourlyRate;
-            double overtimePay = overtimeHours * hourlyRate * OVERTIME_RATE;
-            
-            totalPay += regularPay + overtimePay;
-        }
-        
-        return totalPay;
-    }
-
-    /**
-     * Creates a detailed breakdown of regular and overtime hours and pay.
+    * Calculates the gross pay for an employee within a date range, including overtime pay.
+    * This method processes attendance records by date and applies overtime rates for hours
+    * worked beyond the standard 8-hour workday.
+    *
+    * @param attendanceRecords List of all attendance records
+    * @param empNumber The employee's ID number
+    * @param hourlyRate The employee's hourly pay rate
+    * @param startDate The beginning of the date range
+    * @param endDate The end of the date range
+    * @return The total gross pay including both regular and overtime pay
      */
     private static Map<String, Double> getGrossPayDetails(List<String[]> attendanceRecords, 
                                                 int empNumber, 
