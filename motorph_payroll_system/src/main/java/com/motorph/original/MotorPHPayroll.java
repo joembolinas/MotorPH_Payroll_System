@@ -483,6 +483,11 @@ public class MotorPHPayroll {
             entry.put("grossPay", grossPay);
             entry.put("sumAfterDeductions", sumAfterDeductions);
             entry.put("totalAllowances", totalAllowances);
+            entry.put("sumAfterDeductions", sumAfterDeductions);
+            entry.put("riceSubsidy", allowanceDetails.get("riceSubsidy"));
+            entry.put("phoneAllowance", allowanceDetails.get("phoneAllowance"));
+            entry.put("clothingAllowance", allowanceDetails.get("clothingAllowance"));
+            entry.put("totalAllowances", totalAllowances);
             entry.put("netPay", netPay);
             entry.put("startDate", startDate);
             entry.put("endDate", endDate);
@@ -498,18 +503,17 @@ public class MotorPHPayroll {
         
         try {
             int choice = Integer.parseInt(scanner.nextLine());
-            if (choice == 1) {
-                // Post all payroll entries
-                for (Map<String, Object> entry : payrollEntries) {
-                    int empNumber = (int) entry.get("empNumber");
-                    String key = empNumber + "_" + entry.get("startDate") + "_" + entry.get("endDate");
-                    postedPayrolls.put(key, entry);
+            switch (choice) {
+                case 1 -> {
+                    // Post all payroll entries
+                    for (Map<String, Object> entry : payrollEntries) {
+                        int empNumber = (int) entry.get("empNumber");
+                        String key = empNumber + "_" + entry.get("startDate") + "_" + entry.get("endDate");
+                        postedPayrolls.put(key, entry);
+                    }   System.out.println("Payroll posted successfully.");
                 }
-                System.out.println("Payroll posted successfully.");
-            } else if (choice == 2) {
-                System.out.println("Edit payroll functionality not yet implemented.");
-            } else {
-                System.out.println("Invalid choice.");
+                case 2 -> System.out.println("Edit payroll functionality not yet implemented.");
+                default -> System.out.println("Invalid choice.");
             }
         } catch (NumberFormatException e) {
             System.err.println("Invalid input. Please enter a number.");
@@ -617,35 +621,34 @@ public class MotorPHPayroll {
         
         try {
             int choice = Integer.parseInt(scanner.nextLine());
-            if (choice == 1) {
-                // Post this payroll entry with detailed breakdown
-                Map<String, Object> entry = new HashMap<>();
-                entry.put("empNumber", empNumber);
-                entry.put("name", fullName);
-                entry.put("totalHours", regularHours + overtimeHours);
-                entry.put("regularHours", regularHours);
-                entry.put("overtimeHours", overtimeHours);
-                entry.put("hourlyRate", hourlyRate);
-                entry.put("regularPay", regularPay);
-                entry.put("overtimePay", overtimePay);
-                entry.put("grossPay", grossPay);
-                entry.put("sumAfterDeductions", sumAfterDeductions);
-                entry.put("riceSubsidy", riceSubsidy);
-                entry.put("phoneAllowance", phoneAllowance);
-                entry.put("clothingAllowance", clothingAllowance);
-                entry.put("totalAllowances", totalAllowances);
-                entry.put("netPay", netPay);
-                entry.put("startDate", startDate);
-                entry.put("endDate", endDate);
-                entry.put("workingDays", workingDays);
-                
-                String key = empNumber + "_" + startDate + "_" + endDate;
-                postedPayrolls.put(key, entry);
-                System.out.println("Payroll posted successfully.");
-            } else if (choice == 2) {
-                System.out.println("Edit payroll functionality not yet implemented.");
-            } else {
-                System.out.println("Invalid choice.");
+            switch (choice) {
+                case 1 -> {
+                    // Post this payroll entry with detailed breakdown
+                    Map<String, Object> entry = new HashMap<>();
+                    entry.put("empNumber", empNumber);
+                    entry.put("name", fullName);
+                    entry.put("totalHours", regularHours + overtimeHours);
+                    entry.put("regularHours", regularHours);
+                    entry.put("overtimeHours", overtimeHours);
+                    entry.put("hourlyRate", hourlyRate);
+                    entry.put("regularPay", regularPay);
+                    entry.put("overtimePay", overtimePay);
+                    entry.put("grossPay", grossPay);
+                    entry.put("sumAfterDeductions", sumAfterDeductions);
+                    entry.put("riceSubsidy", riceSubsidy);
+                    entry.put("phoneAllowance", phoneAllowance);
+                    entry.put("clothingAllowance", clothingAllowance);
+                    entry.put("totalAllowances", totalAllowances);
+                    entry.put("netPay", netPay);
+                    entry.put("startDate", startDate);
+                    entry.put("endDate", endDate);
+                    entry.put("workingDays", workingDays);
+                    String key = empNumber + "_" + startDate + "_" + endDate;
+                    postedPayrolls.put(key, entry);
+                    System.out.println("Payroll posted successfully.");
+                }
+                case 2 -> System.out.println("Edit payroll functionality not yet implemented.");
+                default -> System.out.println("Invalid choice.");
             }
         } catch (NumberFormatException e) {
             System.err.println("Invalid input. Please enter a number.");
@@ -726,9 +729,17 @@ public class MotorPHPayroll {
             System.out.println("───────────────────────────────────────────");
             
             System.out.println("ALLOWANCES (Pro-rated for " + (int)(double)payrollEntry.get("workingDays") + " days):");
-            System.out.printf("Rice Subsidy: ₱%.2f\n", (double)payrollEntry.get("riceSubsidy"));
-            System.out.printf("Phone Allowance: ₱%.2f\n", (double)payrollEntry.get("phoneAllowance"));
-            System.out.printf("Clothing Allowance: ₱%.2f\n", (double)payrollEntry.get("clothingAllowance"));
+            
+            double riceSubsidy = payrollEntry.containsKey("riceSubsidy") ? 
+                (double)payrollEntry.get("riceSubsidy") : 0.0;
+            double phoneAllowance = payrollEntry.containsKey("phoneAllowance") ? 
+                (double)payrollEntry.get("phoneAllowance") : 0.0;
+            double clothingAllowance = payrollEntry.containsKey("clothingAllowance") ? 
+                (double)payrollEntry.get("clothingAllowance") : 0.0;
+            
+            System.out.printf("Rice Subsidy: ₱%.2f\n", riceSubsidy);
+            System.out.printf("Phone Allowance: ₱%.2f\n", phoneAllowance);
+            System.out.printf("Clothing Allowance: ₱%.2f\n", clothingAllowance);
             System.out.printf("Total Allowances: ₱%.2f\n", (double)payrollEntry.get("totalAllowances"));
             System.out.println("───────────────────────────────────────────");
             System.out.printf("FINAL NET PAY: ₱%.2f\n", (double)payrollEntry.get("netPay"));
@@ -1356,7 +1367,7 @@ public class MotorPHPayroll {
 
     /**
      * Searches for employees based on a user-provided search term.
-     * The search is performed on employee number, first name, and last name,
+     * The search is performed on employee number, first name, last name, and middle name,
      * and results are displayed in a formatted table.
      *
      * @param employees The list of employee records
@@ -1371,19 +1382,38 @@ public class MotorPHPayroll {
         
         boolean found = false;
         for (String[] employee : employees) {
-            if (employee[0].contains(searchTerm) || 
-                employee[1].toLowerCase().contains(searchTerm) || 
-                employee[2].toLowerCase().contains(searchTerm)) {
+            // Skip header row if present
+            if (employee[0].equals("Employee #") || employee[0].equalsIgnoreCase("id")) {
+                continue;
+            }
+            
+            // Convert relevant fields to lowercase for case-insensitive search
+            String empId = employee[EMP_ID_COL].toLowerCase();
+            String lastName = employee[LAST_NAME_COL].toLowerCase();
+            String firstName = employee[FIRST_NAME_COL].toLowerCase();
+            String middleName = employee.length > 3 && employee[3] != null ? 
+                    employee[3].toLowerCase() : "";
+            
+            // Check if the search term matches any of the fields
+            if (empId.contains(searchTerm) || 
+                lastName.contains(searchTerm) || 
+                firstName.contains(searchTerm) || 
+                middleName.contains(searchTerm)) {
                 
                 found = true;
                 String fullName = formatEmployeeName(employee);
                 
+                // Use the defined constants instead of hardcoded indices
+                String position = employee.length > POSITION_COL && employee[POSITION_COL] != null ? 
+                    employee[POSITION_COL] : "N/A";
+                
+                String status = employee.length > STATUS_COL && employee[STATUS_COL] != null ? 
+                    employee[STATUS_COL] : "N/A";
+                
+                double hourlyRate = extractHourlyRate(employee);
+                
                 System.out.printf("%-10s %-20s %-20s %-15s %-15.2f%n", 
-                        employee[0], 
-                        fullName,
-                        employee.length > 8 ? employee[8] : "N/A",
-                        employee.length > 10 ? employee[10] : "N/A",
-                        extractHourlyRate(employee));
+                        employee[EMP_ID_COL], fullName, position, status, hourlyRate);
             }
         }
         
@@ -1451,19 +1481,12 @@ public class MotorPHPayroll {
      * This method ensures consistent name formatting throughout the application.
      *
      * @param employee The employee record
-     * @return The formatted full name (First Name + Last Name)
+     * @return The formatted full name
      */
     private static String formatEmployeeName(String[] employee) {
-        // Only use the first and last name fields, ignore date fields
-        String firstName = employee[2].trim();
-        String lastName = employee[1].trim();
-        
-        
-        // Check if there's a middle name/suffix and add it if present
-        if (employee.length > 3 && employee[3] != null && !employee[3].trim().isEmpty()) {
-        }
-        
-        return firstName + " " +  lastName;
+        String firstName = employee[FIRST_NAME_COL].trim();
+        String lastName = employee[LAST_NAME_COL].trim();
+        return firstName + " " + lastName;
     }
 
     /**
@@ -1494,62 +1517,16 @@ public class MotorPHPayroll {
     }
 
     /**
-     * Calculates the gross pay including overtime if applicable.
-     */
-    private static double calculateGrossPayWithOvertime(List<String[]> attendanceRecords, 
-                                               int empNumber, 
-                                               double hourlyRate,
-                                               LocalDate startDate, 
-                                               LocalDate endDate) {
-        double totalPay = 0.0;
-        
-        // Group attendance by date to handle overtime on a daily basis
-        Map<LocalDate, List<String[]>> recordsByDate = new HashMap<>();
-        
-        // Group records by date
-        for (String[] record : attendanceRecords) {
-            try {
-                if (isRecordForEmployee(record, empNumber)) {
-                    LocalDate recordDate = parseFlexibleDate(record[ATT_DATE_COL]);
-                    
-                    if (recordDate != null && !recordDate.isBefore(startDate) && !recordDate.isAfter(endDate)) {
-                        if (!recordsByDate.containsKey(recordDate)) {
-                            recordsByDate.put(recordDate, new ArrayList<>());
-                        }
-                        
-                        recordsByDate.get(recordDate).add(record);
-                    }
-                }
-            } catch (Exception e) {
-                // Silently skip problematic records
-                continue;
-            }
-        }
-        
-        // Calculate pay for each day, including overtime
-        for (Map.Entry<LocalDate, List<String[]>> entry : recordsByDate.entrySet()) {
-            double dailyHours = 0.0;
-            
-            // Sum up hours for this day
-            for (String[] record : entry.getValue()) {
-                dailyHours += calculateHoursForRecord(record);
-            }
-            
-            // Calculate pay with overtime
-            double regularHours = Math.min(dailyHours, REGULAR_HOURS_PER_DAY);
-            double overtimeHours = Math.max(0, dailyHours - REGULAR_HOURS_PER_DAY);
-            
-            double regularPay = regularHours * hourlyRate;
-            double overtimePay = overtimeHours * hourlyRate * OVERTIME_RATE;
-            
-            totalPay += regularPay + overtimePay;
-        }
-        
-        return totalPay;
-    }
-
-    /**
-     * Creates a detailed breakdown of regular and overtime hours and pay.
+    * Calculates the gross pay for an employee within a date range, including overtime pay.
+    * This method processes attendance records by date and applies overtime rates for hours
+    * worked beyond the standard 8-hour workday.
+    *
+    * @param attendanceRecords List of all attendance records
+    * @param empNumber The employee's ID number
+    * @param hourlyRate The employee's hourly pay rate
+    * @param startDate The beginning of the date range
+    * @param endDate The end of the date range
+    * @return The total gross pay including both regular and overtime pay
      */
     private static Map<String, Double> getGrossPayDetails(List<String[]> attendanceRecords, 
                                                 int empNumber, 
