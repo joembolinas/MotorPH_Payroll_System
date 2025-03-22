@@ -846,25 +846,30 @@ public class MotorPHPayroll {
         double totalRegularPay = 0.0;
         double totalOvertimePay = 0.0;
 
-        // Group attendance by date to handle overtime on a daily basis
+        // Group records by date to handle overtime on a daily basis (not cumulatively)
+        // This ensures overtime is calculated correctly when an employee works
+        // more than the regular hours in a single day
         Map<LocalDate, List<String[]>> recordsByDate = new HashMap<>();
 
-        // Group records by date
+        // Group each attendance record by its date for the specified employee
+        // This allows us to sum up all hours worked on a specific day
         for (String[] record : attendanceRecords) {
             try {
                 if (isRecordForEmployee(record, empNumber)) {
                     LocalDate recordDate = parseFlexibleDate(record[ATT_DATE_COL]);
                     if (recordDate != null && !recordDate.isBefore(startDate) && !recordDate.isAfter(endDate)) {
+                        // computeIfAbsent creates a new list if the date isn't already in the map
                         recordsByDate.computeIfAbsent(recordDate, k -> new ArrayList<>()).add(record);
                     }
                 }
             } catch (Exception e) {
-                // Skip problematic records
+                // Skip problematic records to ensure the system doesn't crash
                 continue;
             }
         }
 
-        // Calculate pay for each day, including overtime
+        // Process each day separately for proper overtime calculation
+        // Overtime is calculated only for hours exceeding REGULAR_HOURS_PER_DAY on a single day
         for (Map.Entry<LocalDate, List<String[]>> entry : recordsByDate.entrySet()) {
             double dailyHours = 0.0;
 
