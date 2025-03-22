@@ -1107,41 +1107,8 @@ public class MotorPHPayroll {
     }
 
     /**
-     * Calculates the pro-rated allowances for an employee based on the date range.
-     * Monthly allowances are pro-rated according to the number of working days
-     * in the specified period compared to the standard working days in a month.
-     * 
-     * @param employee The employee record
-     * @param startDate The start date of the pay period
-     * @param endDate The end date of the pay period
-     * @return The pro-rated total allowance amount
-     */
-    private static double calculateProRatedAllowances(String[] employee, LocalDate startDate, LocalDate endDate) {
-        // Extract full monthly allowances
-        double riceSubsidy = extractRiceSubsidy(employee);
-        double phoneAllowance = extractPhoneAllowance(employee);
-        double clothingAllowance = extractClothingAllowance(employee);
-        double totalMonthlyAllowances = riceSubsidy + phoneAllowance + clothingAllowance;
-        
-        // Calculate working days in the period (excluding weekends)
-        long totalDays = 0;
-        LocalDate currentDate = startDate;
-        while (!currentDate.isAfter(endDate)) {
-            // Check if it's a weekday (not Saturday or Sunday)
-            if (currentDate.getDayOfWeek().getValue() <= 5) {
-                totalDays++;
-            }
-            currentDate = currentDate.plusDays(1);
-        }
-        
-        // Pro-rate the allowances based on working days in period vs. standard month
-        double proRatedAllowances = (totalMonthlyAllowances / WORK_DAYS_PER_MONTH) * totalDays;
-        
-        return proRatedAllowances;
-    }
-
-    /**
      * Gets the individual pro-rated allowances for detailed display.
+     * Applies the 21-day maximum cap for allowances.
      * 
      * @param employee The employee record
      * @param startDate The start date of the pay period
@@ -1167,16 +1134,58 @@ public class MotorPHPayroll {
             currentDate = currentDate.plusDays(1);
         }
         
-        // Pro-rate each allowance based on working days in period vs. standard month
-        double proRateFactor = (double) totalDays / WORK_DAYS_PER_MONTH;
+        // Cap the working days at WORK_DAYS_PER_MONTH (21)
+        // If employee worked more than 21 days, they still get allowance for 21 days only
+        // If employee worked fewer than 21 days, they get allowance proportional to days worked
+        long effectiveDays = Math.min(totalDays, WORK_DAYS_PER_MONTH);
+        double proRateFactor = (double) effectiveDays / WORK_DAYS_PER_MONTH;
         
         allowances.put("riceSubsidy", riceSubsidy * proRateFactor);
         allowances.put("phoneAllowance", phoneAllowance * proRateFactor);
         allowances.put("clothingAllowance", clothingAllowance * proRateFactor);
         allowances.put("totalAllowances", (riceSubsidy + phoneAllowance + clothingAllowance) * proRateFactor);
         allowances.put("workingDays", (double) totalDays);
+        allowances.put("effectiveWorkingDays", (double) effectiveDays);
         
         return allowances;
+    }
+
+    /**
+     * Calculates the pro-rated allowances for an employee based on the date range.
+     * Monthly allowances are pro-rated according to the number of working days
+     * in the specified period compared to the standard working days in a month.
+     * Maximum allowance is capped at WORK_DAYS_PER_MONTH (21) days.
+     * 
+     * @param employee The employee record
+     * @param startDate The start date of the pay period
+     * @param endDate The end date of the pay period
+     * @return The pro-rated total allowance amount
+     */
+    private static double calculateProRatedAllowances(String[] employee, LocalDate startDate, LocalDate endDate) {
+        // Extract full monthly allowances
+        double riceSubsidy = extractRiceSubsidy(employee);
+        double phoneAllowance = extractPhoneAllowance(employee);
+        double clothingAllowance = extractClothingAllowance(employee);
+        double totalMonthlyAllowances = riceSubsidy + phoneAllowance + clothingAllowance;
+        
+        // Calculate working days in the period (excluding weekends)
+        long totalDays = 0;
+        LocalDate currentDate = startDate;
+        while (!currentDate.isAfter(endDate)) {
+            // Check if it's a weekday (not Saturday or Sunday)
+            if (currentDate.getDayOfWeek().getValue() <= 5) {
+                totalDays++;
+            }
+            currentDate = currentDate.plusDays(1);
+        }
+        
+        // Cap the days at the maximum of WORK_DAYS_PER_MONTH (21)
+        long effectiveDays = Math.min(totalDays, WORK_DAYS_PER_MONTH);
+        
+        // Pro-rate the allowances based on effective working days vs. standard month
+        double proRatedAllowances = (totalMonthlyAllowances / WORK_DAYS_PER_MONTH) * effectiveDays;
+        
+        return proRatedAllowances;
     }
 
     /**
